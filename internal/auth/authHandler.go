@@ -3,26 +3,14 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"gophermart/internal/db"
 	"net/http"
 )
 
-type Storage interface {
-	Register(login, password string) error
-	Find(login, password string) error
-}
-
 type handler struct {
-	db     Storage
+	db     db.Storage
 	secret string
 }
-
-///
-
-var ErrDuplicateLogin = errors.New("login already exist")
-var ErrLoginPwdIncorrect = errors.New("login/password incorrect")
-
-///
-
 type AuthData struct {
 	Login    string `json:"login"`
 	Password string `json:"password"`
@@ -41,7 +29,7 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Error(w, msg, http.StatusBadRequest)
 	} else if err := h.db.Register(authData.Login, authData.Password); err != nil {
-		if errors.Is(err, ErrDuplicateLogin) {
+		if errors.Is(err, db.ErrDuplicateLogin) {
 			w.WriteHeader(http.StatusConflict)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -67,11 +55,11 @@ func (h *handler) Auth(w http.ResponseWriter, r *http.Request) {
 			msg = "password must be non empty"
 		}
 		http.Error(w, msg, http.StatusBadRequest)
-	} else if err := h.db.Find(authData.Login, authData.Password); err != nil {
-		if errors.Is(err, ErrLoginPwdIncorrect) {
-			w.WriteHeader(http.StatusUnauthorized)
-		} else {
+	} else if isExist, err := h.db.IsExist(authData.Login, authData.Password); err != nil || !isExist {
+		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
 		}
 	} else if token, err := getJWTToken(authData.Login, h.secret); err != nil {
 		//todo add logger

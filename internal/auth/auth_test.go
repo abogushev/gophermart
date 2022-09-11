@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"gophermart/internal/db"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,9 +23,9 @@ func (m *mockDbStorage) Register(login string, password string) error {
 	return args.Error(0)
 }
 
-func (m *mockDbStorage) Find(login string, password string) error {
+func (m *mockDbStorage) IsExist(login string, password string) (bool, error) {
 	args := m.Called(login, password)
-	return args.Error(0)
+	return args.Bool(0), args.Error(1)
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
@@ -107,7 +108,7 @@ func TestRegistration(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Register", "already_taken_login", "password").Return(ErrDuplicateLogin)
+				storage.On("Register", "already_taken_login", "password").Return(db.ErrDuplicateLogin)
 				return &handler{storage, secret}
 			},
 		},
@@ -169,7 +170,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Find", "login", "password").Return(nil)
+				storage.On("IsExist", "login", "password").Return(true, nil)
 				return &handler{storage, secret}
 			},
 		},
@@ -223,7 +224,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Find", "incorrect_login", "password").Return(ErrLoginPwdIncorrect)
+				storage.On("IsExist", "incorrect_login", "password").Return(false, nil)
 				return &handler{storage, secret}
 			},
 		},
@@ -237,7 +238,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Find", "login", "incorrect_password").Return(ErrLoginPwdIncorrect)
+				storage.On("IsExist", "login", "incorrect_password").Return(false, nil)
 				return &handler{storage, secret}
 			},
 		},
@@ -251,7 +252,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Find", "internal_error_login", "password").Return(errors.New("unexpected exception"))
+				storage.On("IsExist", "internal_error_login", "password").Return(false, errors.New("unexpected exception"))
 				return &handler{storage, secret}
 			},
 		},
