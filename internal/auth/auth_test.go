@@ -18,14 +18,14 @@ type mockDbStorage struct {
 	mock.Mock
 }
 
-func (m *mockDbStorage) Register(login string, password string) error {
+func (m *mockDbStorage) Register(login string, password string) (string, error) {
 	args := m.Called(login, password)
-	return args.Error(0)
+	return args.String(0), args.Error(1)
 }
 
-func (m *mockDbStorage) IsExist(login string, password string) (bool, error) {
+func (m *mockDbStorage) GetByLoginPassword(login string, password string) (string, error) {
 	args := m.Called(login, password)
-	return args.Bool(0), args.Error(1)
+	return args.String(0), args.Error(1)
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
@@ -39,6 +39,7 @@ func TestRegistration(t *testing.T) {
 	tests := []struct {
 		name       string
 		code       int
+		id         string
 		login      string
 		password   string
 		body       func(login string, password string) string
@@ -47,6 +48,7 @@ func TestRegistration(t *testing.T) {
 		{
 			name:     "register and auth success",
 			code:     200,
+			id:       "1",
 			login:    "login",
 			password: "password",
 			body: func(login string, password string) string {
@@ -54,7 +56,7 @@ func TestRegistration(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Register", "login", "password").Return(nil)
+				storage.On("Register", "login", "password").Return("1", nil)
 				return &handler{storage, secret}
 			},
 		},
@@ -108,7 +110,7 @@ func TestRegistration(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Register", "already_taken_login", "password").Return(db.ErrDuplicateLogin)
+				storage.On("Register", "already_taken_login", "password").Return("", db.ErrDuplicateLogin)
 				return &handler{storage, secret}
 			},
 		},
@@ -122,7 +124,7 @@ func TestRegistration(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("Register", "internal_error_login", "password").Return(errors.New("unexpected exception"))
+				storage.On("Register", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
 				return &handler{storage, secret}
 			},
 		},
@@ -155,6 +157,7 @@ func TestAuth(t *testing.T) {
 	tests := []struct {
 		name       string
 		code       int
+		id         string
 		login      string
 		password   string
 		body       func(login string, password string) string
@@ -163,6 +166,7 @@ func TestAuth(t *testing.T) {
 		{
 			name:     "auth success",
 			code:     200,
+			id:       "1",
 			login:    "login",
 			password: "password",
 			body: func(login string, password string) string {
@@ -170,7 +174,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("IsExist", "login", "password").Return(true, nil)
+				storage.On("GetByLoginPassword", "login", "password").Return("1", nil)
 				return &handler{storage, secret}
 			},
 		},
@@ -224,7 +228,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("IsExist", "incorrect_login", "password").Return(false, nil)
+				storage.On("GetByLoginPassword", "incorrect_login", "password").Return("", db.ErrUserNotFound)
 				return &handler{storage, secret}
 			},
 		},
@@ -238,7 +242,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("IsExist", "login", "incorrect_password").Return(false, nil)
+				storage.On("GetByLoginPassword", "login", "incorrect_password").Return("", db.ErrUserNotFound)
 				return &handler{storage, secret}
 			},
 		},
@@ -252,7 +256,7 @@ func TestAuth(t *testing.T) {
 			},
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
-				storage.On("IsExist", "internal_error_login", "password").Return(false, errors.New("unexpected exception"))
+				storage.On("GetByLoginPassword", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
 				return &handler{storage, secret}
 			},
 		},
@@ -276,14 +280,14 @@ func TestAuth(t *testing.T) {
 	}
 }
 
-func validateToken(t *testing.T, res *http.Response, login string, key string) {
+func validateToken(t *testing.T, res *http.Response, id string, key string) {
 	cookies := res.Cookies()
 	tokenFound := false
 	for i := 0; i < len(cookies); i++ {
 		if cookies[i].Name == "token" {
-			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{Login: login}).SignedString([]byte(key))
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{id: id}).SignedString([]byte(key))
 			assert.NoError(t, err, "unexpected exception in validateToken")
-			assert.Equal(t, "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.7leWawyt22rMP5JeMS6Bpu-tnlKppcLR2zHTYMmZc6cYJ3qAGkdmsVEW8PVNCw47zhzAsi-Du0ABa4zhBjc-DA", token, "bad token")
+			assert.Equal(t, "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.e30.YULfVr2Tr-f2beacgt9PxdFRcfeJCKd7MsfezbXJwAi-MPiz8jRo4SWk_aAfzJLSIMai2RJZ-nQ1BKSYFKGwhA", token, "bad token")
 			tokenFound = true
 			break
 		}

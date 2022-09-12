@@ -28,13 +28,13 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 			msg = "password must be non empty"
 		}
 		http.Error(w, msg, http.StatusBadRequest)
-	} else if err := h.db.Register(authData.Login, authData.Password); err != nil {
+	} else if id, err := h.db.Register(authData.Login, authData.Password); err != nil {
 		if errors.Is(err, db.ErrDuplicateLogin) {
 			w.WriteHeader(http.StatusConflict)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-	} else if token, err := getJWTToken(authData.Login, h.secret); err != nil {
+	} else if token, err := getJWTToken(id, h.secret); err != nil {
 		//todo add logger
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
@@ -55,13 +55,13 @@ func (h *handler) Auth(w http.ResponseWriter, r *http.Request) {
 			msg = "password must be non empty"
 		}
 		http.Error(w, msg, http.StatusBadRequest)
-	} else if isExist, err := h.db.IsExist(authData.Login, authData.Password); err != nil || !isExist {
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-		} else {
+	} else if id, err := h.db.GetByLoginPassword(authData.Login, authData.Password); err != nil {
+		if err == db.ErrUserNotFound {
 			w.WriteHeader(http.StatusUnauthorized)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
 		}
-	} else if token, err := getJWTToken(authData.Login, h.secret); err != nil {
+	} else if token, err := getJWTToken(id, h.secret); err != nil {
 		//todo add logger
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {

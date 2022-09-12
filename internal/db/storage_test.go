@@ -19,7 +19,7 @@ var connURL = "host=localhost port=5432 user=postgres dbname=postgres sslmode=di
 var xdb = sqlx.MustConnect("postgres", connURL)
 
 func dropTables() {
-	xdb.MustExec(`drop table users;`)
+	xdb.MustExec(`drop table if exists users;`)
 }
 
 func cleanUsersTable() {
@@ -46,22 +46,25 @@ func Test_storageImpl_Register(t *testing.T) {
 		name    string
 		args    args
 		prepare func()
-		check   func(error)
+		check   func(string, error)
 	}{
 		{
 			"register success",
 			args{login: "login", password: "password"},
 			func() {},
-			func(err error) { assert.NoError(t, err, "error not eq nil") },
+			func(id string, err error) {
+				assert.NotEmpty(t, id, "id is empty")
+				assert.NoError(t, err, "error not eq nil")
+			},
 		},
 		{
 			"duplicate login",
 			args{login: "login", password: "password"},
 			func() {
-
-				xdb.MustExec(`insert into users(login, password) values('login','password');`)
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002','login','password');`)
 			},
-			func(err error) {
+			func(id string, err error) {
+				assert.Empty(t, id, "id must be empty")
 				assert.ErrorIs(t, err, ErrDuplicateLogin)
 			},
 		},
@@ -75,7 +78,7 @@ func Test_storageImpl_Register(t *testing.T) {
 	}
 }
 
-func Test_storageImpl_IsExist(t *testing.T) {
+func Test_storageImpl_GetByLoginPassword(t *testing.T) {
 	db := initNewDB(t)
 	type args struct {
 		login    string
@@ -85,26 +88,26 @@ func Test_storageImpl_IsExist(t *testing.T) {
 		name    string
 		args    args
 		prepare func()
-		check   func(bool, error)
+		check   func(string, error)
 	}{
 		{
-			"IsExist = true",
+			"GetByLoginPassword success",
 			args{login: "login", password: "password"},
 			func() {
-				xdb.MustExec(`insert into users(login, password) values('login','password');`)
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
 			},
-			func(isExist bool, err error) {
-				assert.True(t, isExist, "failed to find user")
+			func(id string, err error) {
+				assert.NotEmpty(t, id, "id must be not empty")
 				assert.NoError(t, err, "error not eq nil")
 			},
 		},
 		{
-			"IsExist = false",
+			"GetByLoginPassword failed",
 			args{login: "login", password: "password"},
 			func() {},
-			func(isExist bool, err error) {
-				assert.False(t, isExist, "find unexpected user")
-				assert.NoError(t, err, "error not eq nil")
+			func(id string, err error) {
+				assert.Empty(t, id, "id must be empty")
+				assert.ErrorIs(t, err, ErrUserNotFound)
 			},
 		},
 	}
@@ -112,7 +115,7 @@ func Test_storageImpl_IsExist(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cleanUsersTable()
 			tt.prepare()
-			tt.check(db.IsExist(tt.args.login, tt.args.password))
+			tt.check(db.GetByLoginPassword(tt.args.login, tt.args.password))
 		})
 	}
 }

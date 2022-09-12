@@ -14,6 +14,7 @@ require (
 	github.com/go-chi/chi v1.5.4 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.4.2
+	github.com/google/uuid v1.3.0
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.7
 	github.com/pmezard/go-difflib v1.0.0 // indirect

@@ -7,15 +7,15 @@ import (
 )
 
 type UserClaims struct {
-	Login string
+	id string
 	jwt.StandardClaims
 }
 
-func getJWTToken(login string, secret string) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{Login: login}).SignedString([]byte(secret))
+func getJWTToken(id string, secret string) (string, error) {
+	return jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{id: id}).SignedString([]byte(secret))
 }
 
-func getLoginFromJWTToken(str string, secret string) (string, error) {
+func GetIdFromJWTToken(str string, secret string) (string, error) {
 	token, err := jwt.ParseWithClaims(
 		str,
 		&UserClaims{},
@@ -31,5 +31,5 @@ func getLoginFromJWTToken(str string, secret string) (string, error) {
 	if !ok {
 		return "", errors.New("Couldn't parse claims")
 	}
-	return claims.Login, nil
+	return claims.id, nil
 }
