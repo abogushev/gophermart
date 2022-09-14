@@ -28,6 +28,10 @@ func (m *mockDbStorage) GetByLoginPassword(login string, password string) (strin
 	return args.String(0), args.Error(1)
 }
 
+func (m *mockDbStorage) SaveOrder(userId string, number int) error {
+	return nil
+}
+
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 
 func TestRegistration(t *testing.T) {
@@ -142,7 +146,7 @@ func TestRegistration(t *testing.T) {
 			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
 
 			if res.StatusCode == 200 {
-				validateToken(t, res, tt.login, secret)
+				validateToken(t, res, tt.id, secret)
 			}
 		})
 	}
@@ -274,7 +278,7 @@ func TestAuth(t *testing.T) {
 			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
 
 			if res.StatusCode == 200 {
-				validateToken(t, res, tt.login, secret)
+				validateToken(t, res, tt.id, secret)
 			}
 		})
 	}
@@ -285,9 +289,9 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 	tokenFound := false
 	for i := 0; i < len(cookies); i++ {
 		if cookies[i].Name == "token" {
-			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{id: id}).SignedString([]byte(key))
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{Id: id}).SignedString([]byte(key))
 			assert.NoError(t, err, "unexpected exception in validateToken")
-			assert.Equal(t, "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.e30.YULfVr2Tr-f2beacgt9PxdFRcfeJCKd7MsfezbXJwAi-MPiz8jRo4SWk_aAfzJLSIMai2RJZ-nQ1BKSYFKGwhA", token, "bad token")
+			assert.Equal(t, "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A", token, "bad token")
 			tokenFound = true
 			break
 		}
@@ -295,4 +299,11 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 	if !tokenFound {
 		assert.Fail(t, "token not found in cookies")
 	}
+}
+
+func TestJWT(t *testing.T) {
+	secret := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
+	token, _ := getJWTToken("1", secret)
+	result, _ := GetIdFromJWTToken(token, secret)
+	assert.Equal(t, "1", result)
 }

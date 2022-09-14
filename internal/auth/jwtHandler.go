@@ -1,35 +1,29 @@
 package auth
 
 import (
-	"errors"
-
 	"github.com/golang-jwt/jwt/v4"
 )
 
 type UserClaims struct {
-	id string
+	Id string `json:"id"`
 	jwt.StandardClaims
 }
 
 func getJWTToken(id string, secret string) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{id: id}).SignedString([]byte(secret))
+	return jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{Id: id}).SignedString([]byte(secret))
 }
 
-func GetIdFromJWTToken(str string, secret string) (string, error) {
-	token, err := jwt.ParseWithClaims(
-		str,
-		&UserClaims{},
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(secret), nil
-		},
-	)
+func GetIdFromJWTToken(tokenString string, secret string) (string, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	})
 	if err != nil {
 		return "", err
 	}
 
-	claims, ok := token.Claims.(*UserClaims)
-	if !ok {
-		return "", errors.New("Couldn't parse claims")
+	if claims, ok := token.Claims.(*UserClaims); ok && token.Valid {
+		return claims.Id, nil
+	} else {
+		return "", err
 	}
-	return claims.id, nil
 }

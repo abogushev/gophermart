@@ -1,6 +1,7 @@
 package order
 
 import (
+	"errors"
 	"gophermart/internal/auth"
 	"gophermart/internal/db"
 	"io"
@@ -13,22 +14,20 @@ type handler struct {
 	secret string
 }
 
-func (h *handler) userIsAuthed(r *http.Request) (string, bool) {
-	cookies := r.Cookies()
-	for i := 0; i < len(cookies); i++ {
-		if cookies[i].Name == "token" {
-			if login, err := auth.GetIdFromJWTToken(cookies[i].Value, h.secret); err != nil {
-				//todo log
-				return "", false
-			} else {
-				return login, true
-			}
-		}
+func (h *handler) userId(r *http.Request) (string, bool) {
+	//todo log
+
+	if token, err := r.Cookie("token"); err != nil {
+		return "", false
+	} else if id, err := auth.GetIdFromJWTToken(token.Value, h.secret); err != nil {
+		return "", false
+	} else {
+		return id, true
 	}
 }
 
 func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
-	if login, isAuthed := h.userIsAuthed(r); !isAuthed {
+	if userId, isAuthed := h.userId(r); !isAuthed {
 		w.WriteHeader(http.StatusUnauthorized)
 	} else if body, err := io.ReadAll(r.Body); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -36,12 +35,20 @@ func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	} else if !isValidOrder(order) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-	} else if err := h.db.saveOrder(login, order); err != nil {
-		// 200 -  номер заказа уже был загружен этим пользователем;
-		// 409 — номер заказа уже был загружен другим пользователем;
-		// 500 — внутренняя ошибка сервера.
+	} else if err := h.db.SaveOrder(userId, order); err != nil {
+		if errors.Is(err, db.ErrDuplicateOrder) {
+			// 200 -  номер заказа уже был загружен этим пользователем;
+			w.WriteHeader(http.StatusOK)
+		} else if errors.Is(err, db.ErrOrderOfAnotherUser) {
+			// 409 — номер заказа уже был загружен другим пользователем;
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			// 500 — внутренняя ошибка сервера.
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	} else {
-		// 202
+		// 202 -  новый номер заказа принят в обработку;
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
 

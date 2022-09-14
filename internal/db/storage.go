@@ -14,7 +14,7 @@ import (
 type Storage interface {
 	Register(login, password string) (string, error)
 	GetByLoginPassword(login, password string) (string, error)
-	// SaveOrder(login string, order int) error
+	SaveOrder(userId string, number int) error
 }
 
 var ErrDuplicateLogin = errors.New("login already exist")
@@ -31,23 +31,28 @@ type storageImpl struct {
 }
 
 const (
-	createUserTableIfNeedSQL = `create table if not exists users(
+	createTablesIfNeedSQL = `
+	create table if not exists users(
 		id uuid primary key, 
 		login varchar(256) unique, 
 		password varchar(256) not null
-	);`
+	);
 
-	getUserIdByLoginPasswordSQL = `select id from users where login = $1 and password = $2;`
-	getCountByLoginPasswordSQL  = `select count(*) from users where login = $1 and password = $2;`
-	insertUserSQL               = `insert into users(id, login, password) values($1,$2,$3) returning id;`
-
-	createOrderTableIfNeedSQL = `create table if not exists orders (
+	create table if not exists orders (
 		number integer primary key,
 		userId UUID, 
 		CONSTRAINT fk_user
 		FOREIGN KEY(userId) 
 		REFERENCES users(id)
-	);`
+	);
+	`
+
+	getUserIdByLoginPasswordSQL = `select id from users where login = $1 and password = $2;`
+	getCountByLoginPasswordSQL  = `select count(*) from users where login = $1 and password = $2;`
+	insertUserSQL               = `insert into users(id, login, password) values($1,$2,$3) returning id;`
+
+	getOrderSQL  = `select userId from orders where number = $1;`
+	saveOrderSQL = `insert into orders(userId, number) values($1,$2);`
 )
 
 func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Storage, error) {
@@ -68,7 +73,7 @@ func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Sto
 }
 
 func (db *storageImpl) initDB() error {
-	_, err := db.xdb.ExecContext(db.ctx, createUserTableIfNeedSQL)
+	_, err := db.xdb.ExecContext(db.ctx, createTablesIfNeedSQL)
 	return err
 }
 
@@ -110,4 +115,36 @@ func (db *storageImpl) GetByLoginPassword(login, password string) (string, error
 	}
 
 	return id, nil
+}
+
+func (db *storageImpl) SaveOrder(userId string, number int) error {
+	tx, err := db.xdb.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var orderUserId string
+	err = db.xdb.GetContext(db.ctx, &orderUserId, getOrderSQL, number)
+
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	if err == nil {
+		if orderUserId == userId {
+			return ErrDuplicateOrder
+		}
+		return ErrOrderOfAnotherUser
+	}
+
+	if _, err = db.xdb.ExecContext(db.ctx, saveOrderSQL, userId, number); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
