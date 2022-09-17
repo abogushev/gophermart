@@ -2,7 +2,10 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"gophermart/internal/order/model"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -143,7 +146,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 			check: func(err error) {
 				assert.NoError(t, err, "err not eq nil")
 				var number int
-				assert.NoError(t, xdb.Get(&number, "select number from orders where number = 1 and userId = 'cfbe7630-32b3-11ed-a261-0242ac120002'"))
+				assert.NoError(t, xdb.Get(&number, "select number from orders where number = 1 and user_id = 'cfbe7630-32b3-11ed-a261-0242ac120002'"))
 			},
 		},
 		{
@@ -153,7 +156,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 			order:  1,
 			prepare: func() {
 				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
-				xdb.MustExec("insert into orders(number, userId) values(1, 'cfbe7630-32b3-11ed-a261-0242ac120002');")
+				xdb.MustExec("insert into orders(number, user_id) values(1, 'cfbe7630-32b3-11ed-a261-0242ac120002');")
 			},
 			check: func(err error) {
 				assert.ErrorIs(t, err, ErrDuplicateOrder, "must be duplicate order err")
@@ -167,7 +170,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 			prepare: func() {
 				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
 				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120003', 'login2','password2');`)
-				xdb.MustExec("insert into orders(number, userId) values(1, 'cfbe7630-32b3-11ed-a261-0242ac120003');")
+				xdb.MustExec("insert into orders(number, user_id) values(1, 'cfbe7630-32b3-11ed-a261-0242ac120003');")
 			},
 			check: func(err error) {
 				assert.ErrorIs(t, err, ErrOrderOfAnotherUser, "must be order of another user err")
@@ -178,7 +181,64 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			beforeTest()
 			tt.prepare()
-			tt.check(db.SaveOrder("1", tt.order))
+			tt.check(db.SaveOrder("cfbe7630-32b3-11ed-a261-0242ac120002", tt.order))
+		})
+	}
+}
+
+func Test_storageImpl_GetOrders(t *testing.T) {
+	db := initNewDB(t)
+	tests := []struct {
+		name    string
+		prepare func()
+		check   func([]model.Order, error)
+	}{
+		{
+			name: "get full orders of user",
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+				xdb.MustExec(`insert into orders(
+					number,
+					user_id,
+					status,
+					uploaded_at,
+					accrual) values
+					(
+						1,
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						0,
+						'2020-12-10T15:15:45+03:00',
+						0
+					),
+					(
+						2,
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						3,
+						'2020-12-10T15:15:45+03:00',
+						10
+					)
+				`)
+			},
+			check: func(arr []model.Order, err error) {
+				tm, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
+				uploadedAt := tm.In(arr[0].UploadedAt.Location())
+				expected := []model.Order{
+					{Number: 1, UserId: "cfbe7630-32b3-11ed-a261-0242ac120002", Status: model.New, UploadedAt: uploadedAt, Accrual: 0},
+					{Number: 2, UserId: "cfbe7630-32b3-11ed-a261-0242ac120002", Status: model.Processed, UploadedAt: uploadedAt, Accrual: 10},
+				}
+				assert.NoError(t, err)
+				fmt.Println(arr)
+				fmt.Println(expected)
+
+				assert.Equal(t, expected, arr)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			beforeTest()
+			tt.prepare()
+			tt.check(db.GetOrders("cfbe7630-32b3-11ed-a261-0242ac120002"))
 		})
 	}
 }

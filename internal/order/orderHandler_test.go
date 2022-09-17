@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"gophermart/internal/db"
+	"gophermart/internal/order/model"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -28,6 +29,11 @@ func (m *mockDbStorage) GetByLoginPassword(login string, password string) (strin
 func (m *mockDbStorage) SaveOrder(userId string, number int) error {
 	args := m.Called(userId, number)
 	return args.Error(0)
+}
+
+func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
+	args := m.Called(userId)
+	return args.Get(0).([]model.Order), args.Error(1)
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"

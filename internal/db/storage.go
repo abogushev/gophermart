@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"gophermart/internal/order/model"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -15,6 +16,7 @@ type Storage interface {
 	Register(login, password string) (string, error)
 	GetByLoginPassword(login, password string) (string, error)
 	SaveOrder(userId string, number int) error
+	GetOrders(userId string) ([]model.Order, error)
 }
 
 var ErrDuplicateLogin = errors.New("login already exist")
@@ -40,9 +42,12 @@ const (
 
 	create table if not exists orders (
 		number integer primary key,
-		userId UUID, 
+		user_id UUID,
+		status int not null default 0,
+		uploaded_at timestamp with time zone not null default now(),
+		accrual integer not null default 0,
 		CONSTRAINT fk_user
-		FOREIGN KEY(userId) 
+		FOREIGN KEY(user_id) 
 		REFERENCES users(id)
 	);
 	`
@@ -51,8 +56,16 @@ const (
 	getCountByLoginPasswordSQL  = `select count(*) from users where login = $1 and password = $2;`
 	insertUserSQL               = `insert into users(id, login, password) values($1,$2,$3) returning id;`
 
-	getOrderSQL  = `select userId from orders where number = $1;`
-	saveOrderSQL = `insert into orders(userId, number) values($1,$2);`
+	getOrderUserIdSQL          = `select user_id from orders where number = $1;`
+	saveOrderSQL               = `insert into orders(user_id, number) values($1,$2);`
+	selectAllOrdersOfUserIdSQL = `
+	select
+		number,
+		status,
+		user_id,
+		accrual,
+		uploaded_at 
+	from orders where user_id = $1;`
 )
 
 func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Storage, error) {
@@ -125,7 +138,7 @@ func (db *storageImpl) SaveOrder(userId string, number int) error {
 	defer tx.Rollback()
 
 	var orderUserId string
-	err = db.xdb.GetContext(db.ctx, &orderUserId, getOrderSQL, number)
+	err = db.xdb.GetContext(db.ctx, &orderUserId, getOrderUserIdSQL, number)
 
 	if err != nil && err != sql.ErrNoRows {
 		return err
@@ -147,4 +160,12 @@ func (db *storageImpl) SaveOrder(userId string, number int) error {
 	}
 
 	return nil
+}
+
+func (db *storageImpl) GetOrders(userId string) ([]model.Order, error) {
+	orders := []model.Order{}
+	if err := db.xdb.SelectContext(db.ctx, &orders, selectAllOrdersOfUserIdSQL, userId); err != nil {
+		return nil, err
+	}
+	return orders, nil
 }
