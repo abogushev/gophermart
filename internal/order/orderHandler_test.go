@@ -181,10 +181,12 @@ func Test_handler_GetOrders(t *testing.T) {
 			checkResponeBody: func(res *http.Response) {
 				uploadedAt, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
 				expected := make([]api.Order, 4)
-				expected[0] = api.Order{9278923470, "1", "PROCESSED", uploadedAt, 500}
-				expected[1] = api.Order{12345678903, "1", "PROCESSING", uploadedAt, 0}
-				expected[2] = api.Order{346436439, "1", "INVALID", uploadedAt, 0}
-				expected[3] = api.Order{346436431, "1", "NEW", uploadedAt, 0}
+				prcsAcc := 500.0
+
+				expected[0] = api.Order{9278923470, "1", "PROCESSED", uploadedAt, &prcsAcc}
+				expected[1] = api.Order{12345678903, "1", "PROCESSING", uploadedAt, nil}
+				expected[2] = api.Order{346436439, "1", "INVALID", uploadedAt, nil}
+				expected[3] = api.Order{346436431, "1", "NEW", uploadedAt, nil}
 
 				var result []api.Order
 				json.NewDecoder(res.Body).Decode(&result)

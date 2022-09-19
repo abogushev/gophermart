@@ -40,6 +40,7 @@ func NewOrder(number int, userId string, status OrderStatus, accrual float64) *O
 
 func (o *Order) ToApi() api.Order {
 	s := ""
+	accrual := o.getAccrual()
 
 	switch o.Status {
 	case New:
@@ -52,5 +53,10 @@ func (o *Order) ToApi() api.Order {
 		s = "PROCESSED"
 	}
 
-	return api.Order{Number: o.Number, UserId: o.UserId, Status: s, UploadedAt: o.UploadedAt, Accrual: o.getAccrual()}
+	var ac *float64
+	if o.Status == Processed {
+		ac = &accrual
+	}
+
+	return api.Order{Number: o.Number, UserId: o.UserId, Status: s, UploadedAt: o.UploadedAt, Accrual: ac}
 }
