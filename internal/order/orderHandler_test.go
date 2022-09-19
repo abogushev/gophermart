@@ -2,13 +2,17 @@ package order
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
+	"gophermart/internal/order/model/api"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -150,10 +154,11 @@ func Test_handler_GetOrders(t *testing.T) {
 	}
 	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
 	tests := []struct {
-		name       string
-		code       int
-		token      string
-		getHandler func() *handler
+		name             string
+		code             int
+		token            string
+		getHandler       func() *handler
+		checkResponeBody func(res *http.Response)
 	}{
 		{
 			name:  "успешная обработка запроса",
@@ -166,9 +171,24 @@ func Test_handler_GetOrders(t *testing.T) {
 				result[1] = *model.NewOrder(12345678903, "1", model.Processing, 0)
 				result[2] = *model.NewOrder(346436439, "1", model.Invalid, 0)
 				result[3] = *model.NewOrder(346436431, "1", model.New, 0)
+				for i := 0; i < len(result); i++ {
+					result[i].UploadedAt, _ = time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
+				}
 
 				storage.On("GetOrders", "1").Return(result, nil)
 				return &handler{db: storage, secret: secret}
+			},
+			checkResponeBody: func(res *http.Response) {
+				uploadedAt, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
+				expected := make([]api.Order, 4)
+				expected[0] = api.Order{9278923470, "1", "PROCESSED", uploadedAt, 500}
+				expected[1] = api.Order{12345678903, "1", "PROCESSING", uploadedAt, 0}
+				expected[2] = api.Order{346436439, "1", "INVALID", uploadedAt, 0}
+				expected[3] = api.Order{346436431, "1", "NEW", uploadedAt, 0}
+
+				var result []api.Order
+				json.NewDecoder(res.Body).Decode(&result)
+				assert.ElementsMatch(t, result, expected, "wrong response")
 			},
 		},
 		{
@@ -179,6 +199,11 @@ func Test_handler_GetOrders(t *testing.T) {
 				storage := new(mockDbStorage)
 				storage.On("GetOrders", "1").Return(make([]model.Order, 0), nil)
 				return &handler{db: storage, secret: secret}
+			},
+			checkResponeBody: func(res *http.Response) {
+				var result []api.Order
+				e := json.NewDecoder(res.Body).Decode(&result)
+				assert.ErrorIs(t, e, io.EOF)
 			},
 		},
 		{
@@ -208,6 +233,10 @@ func Test_handler_GetOrders(t *testing.T) {
 			h.ServeHTTP(w, request)
 			res := w.Result()
 			defer res.Body.Close()
+			if tt.checkResponeBody != nil {
+				tt.checkResponeBody(res)
+			}
+
 			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
 		})
 	}

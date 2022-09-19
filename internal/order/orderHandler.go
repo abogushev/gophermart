@@ -5,6 +5,7 @@ import (
 	"errors"
 	"gophermart/internal/auth"
 	"gophermart/internal/db"
+	"gophermart/internal/order/model/api"
 	"io"
 	"net/http"
 	"strconv"
@@ -66,7 +67,11 @@ func (h *handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(orders)
+		apiOrders := make([]api.Order, len(orders))
+		for i := 0; i < len(orders); i++ {
+			apiOrders[i] = orders[i].ToApi()
+		}
+		json.NewEncoder(w).Encode(apiOrders)
 	}
 }
 

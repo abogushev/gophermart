@@ -38,7 +38,7 @@ func NewOrder(number int, userId string, status OrderStatus, accrual float64) *O
 	return &Order{Number: number, UserId: userId, Status: status, Accrual: int64(integer*100 + fraction*100)}
 }
 
-func (o *Order) toApi() api.Order {
+func (o *Order) ToApi() api.Order {
 	s := ""
 
 	switch o.Status {
