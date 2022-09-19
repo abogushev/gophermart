@@ -1,6 +1,7 @@
 package model
 
 import (
+	"gophermart/internal/order/model/api"
 	"math"
 	"time"
 )
@@ -35,4 +36,21 @@ func (order *Order) getAccrual() float64 {
 func NewOrder(number int, userId string, status OrderStatus, accrual float64) *Order {
 	integer, fraction := math.Modf(accrual)
 	return &Order{Number: number, UserId: userId, Status: status, Accrual: int64(integer*100 + fraction*100)}
+}
+
+func (o *Order) toApi() api.Order {
+	s := ""
+
+	switch o.Status {
+	case New:
+		s = "NEW"
+	case Processing:
+		s = "PROCESSING"
+	case Invalid:
+		s = "INVALID"
+	case Processed:
+		s = "PROCESSED"
+	}
+
+	return api.Order{Number: o.Number, UserId: o.UserId, Status: s, UploadedAt: o.UploadedAt, Accrual: o.getAccrual()}
 }

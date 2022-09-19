@@ -1,6 +1,7 @@
 package order
 
 import (
+	"encoding/json"
 	"errors"
 	"gophermart/internal/auth"
 	"gophermart/internal/db"
@@ -49,6 +50,23 @@ func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// 202 -  новый номер заказа принят в обработку;
 		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
+func (h *handler) GetOrders(w http.ResponseWriter, r *http.Request) {
+	if userId, isAuthed := h.userId(r); !isAuthed {
+		// 401 — пользователь не авторизован.
+		w.WriteHeader(http.StatusUnauthorized)
+	} else if orders, err := h.db.GetOrders(userId); err != nil {
+		// 500 — внутренняя ошибка сервера.
+		w.WriteHeader(http.StatusInternalServerError)
+	} else if len(orders) == 0 {
+		// 	204 — нет данных для ответа.
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(orders)
 	}
 }
 

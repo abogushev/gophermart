@@ -142,3 +142,73 @@ func Test_handler_PostOrder(t *testing.T) {
 		})
 	}
 }
+
+func Test_handler_GetOrders(t *testing.T) {
+	defaultStorage := new(mockDbStorage)
+	defaultHandler := func() *handler {
+		return &handler{defaultStorage, secret}
+	}
+	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
+	tests := []struct {
+		name       string
+		code       int
+		token      string
+		getHandler func() *handler
+	}{
+		{
+			name:  "успешная обработка запроса",
+			code:  200,
+			token: defaultToken,
+			getHandler: func() *handler {
+				storage := new(mockDbStorage)
+				result := make([]model.Order, 4)
+				result[0] = *model.NewOrder(9278923470, "1", model.Processed, 500.0)
+				result[1] = *model.NewOrder(12345678903, "1", model.Processing, 0)
+				result[2] = *model.NewOrder(346436439, "1", model.Invalid, 0)
+				result[3] = *model.NewOrder(346436431, "1", model.New, 0)
+
+				storage.On("GetOrders", "1").Return(result, nil)
+				return &handler{db: storage, secret: secret}
+			},
+		},
+		{
+			name:  "нет данных для ответа",
+			code:  204,
+			token: defaultToken,
+			getHandler: func() *handler {
+				storage := new(mockDbStorage)
+				storage.On("GetOrders", "1").Return(make([]model.Order, 0), nil)
+				return &handler{db: storage, secret: secret}
+			},
+		},
+		{
+			name:       "пользователь не аутентифицирован",
+			code:       401,
+			token:      "wrong token",
+			getHandler: defaultHandler,
+		},
+		{
+			name:  "внутренняя ошибка сервера.",
+			code:  500,
+			token: defaultToken,
+			getHandler: func() *handler {
+				storage := new(mockDbStorage)
+				storage.On("GetOrders", "1").Return([]model.Order{}, errors.New("unexpected exception"))
+				return &handler{db: storage, secret: secret}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/api/user/orders", nil)
+			request.AddCookie(&http.Cookie{Name: "token", Value: tt.token})
+
+			w := httptest.NewRecorder()
+			h := http.HandlerFunc(tt.getHandler().GetOrders)
+			h.ServeHTTP(w, request)
+			res := w.Result()
+			defer res.Body.Close()
+			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
+		})
+	}
+}
