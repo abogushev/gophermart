@@ -6,6 +6,8 @@ import (
 	"errors"
 	"gophermart/internal/order/model"
 
+	accountModel "gophermart/internal/account/model/db"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -17,6 +19,8 @@ type Storage interface {
 	GetByLoginPassword(login, password string) (string, error)
 	SaveOrder(userId string, number int) error
 	GetOrders(userId string) ([]model.Order, error)
+
+	GetAccount(userId string) (*accountModel.Account, error)
 }
 
 var ErrDuplicateLogin = errors.New("login already exist")
@@ -50,6 +54,15 @@ const (
 		FOREIGN KEY(user_id) 
 		REFERENCES users(id)
 	);
+
+	create table if not exists accounts(
+		user_id UUID,
+		current integer not null default 0,
+		withdrawn integer not null default 0,
+		CONSTRAINT fk_user
+		FOREIGN KEY(user_id) 
+		REFERENCES users(id)
+	);
 	`
 
 	getUserIdByLoginPasswordSQL = `select id from users where login = $1 and password = $2;`
@@ -66,6 +79,8 @@ const (
 		accrual,
 		uploaded_at 
 	from orders where user_id = $1;`
+
+	getUserAccount = `select user_id, current, withdrawn from accounts where user_id = $1`
 )
 
 func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Storage, error) {
@@ -168,4 +183,18 @@ func (db *storageImpl) GetOrders(userId string) ([]model.Order, error) {
 		return nil, err
 	}
 	return orders, nil
+}
+
+//Account
+
+func (db *storageImpl) GetAccount(userId string) (*accountModel.Account, error) {
+	var account accountModel.Account
+	err := db.xdb.GetContext(db.ctx, &account, getUserAccount, userId)
+	if err == sql.ErrNoRows {
+		return nil, ErrUserNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &account, nil
 }

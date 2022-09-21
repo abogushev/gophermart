@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	accountModel "gophermart/internal/account/model/db"
+
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
@@ -23,11 +25,13 @@ var xdb = sqlx.MustConnect("postgres", connURL)
 
 func dropTables() {
 	xdb.MustExec("drop table if exists orders;")
+	xdb.MustExec("drop table if exists accounts;")
 	xdb.MustExec(`drop table if exists users;`)
 }
 
 func beforeTest() {
 	xdb.MustExec(`delete from orders;`)
+	xdb.MustExec(`delete from accounts;`)
 	xdb.MustExec(`delete from users;`)
 }
 
@@ -239,6 +243,44 @@ func Test_storageImpl_GetOrders(t *testing.T) {
 			beforeTest()
 			tt.prepare()
 			tt.check(db.GetOrders("cfbe7630-32b3-11ed-a261-0242ac120002"))
+		})
+	}
+}
+
+func Test_storageImpl_GetAccount(t *testing.T) {
+	db := initNewDB(t)
+	tests := []struct {
+		name    string
+		prepare func()
+		check   func(*accountModel.Account, error)
+	}{
+		{
+			name: "get account",
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+				xdb.MustExec(`insert into accounts(user_id, current, withdrawn) values('cfbe7630-32b3-11ed-a261-0242ac120002', 10, 10)`)
+			},
+			check: func(acc *accountModel.Account, err error) {
+				assert.NoError(t, err)
+				expected := &accountModel.Account{"cfbe7630-32b3-11ed-a261-0242ac120002", 10, 10}
+				assert.Equal(t, expected, expected)
+			},
+		},
+		{
+			name: "not exist account",
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+			},
+			check: func(acc *accountModel.Account, err error) {
+				assert.ErrorIs(t, err, ErrUserNotFound)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			beforeTest()
+			tt.prepare()
+			tt.check(db.GetAccount("cfbe7630-32b3-11ed-a261-0242ac120002"))
 		})
 	}
 }

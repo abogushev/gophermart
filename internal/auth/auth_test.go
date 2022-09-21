@@ -13,6 +13,8 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	accountModel "gophermart/internal/account/model/db"
 )
 
 type mockDbStorage struct {
@@ -34,6 +36,10 @@ func (m *mockDbStorage) SaveOrder(userId string, number int) error {
 }
 
 func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
+	return nil, nil
+}
+
+func (m *mockDbStorage) GetAccount(userId string) (*accountModel.Account, error) {
 	return nil, nil
 }
 
