@@ -1,9 +1,9 @@
 package account
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
 	"net/http"
@@ -41,9 +41,17 @@ func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
 
 func (m *mockDbStorage) GetAccount(userId string) (*accountModel.Account, error) {
 	args := m.Called(userId)
-	fmt.Println(args.Get(0))
 	r := args.Get(0).(accountModel.Account)
 	return &r, args.Error(1)
+}
+
+func (m *mockDbStorage) WithdrawFromAccount(userId string, sum float64, number int) error {
+	args := m.Called(userId, sum, number)
+	r := args.Get(0)
+	if r == nil {
+		return nil
+	}
+	return r.(error)
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
@@ -124,6 +132,96 @@ func Test_handler_GetAccount(t *testing.T) {
 				tt.checkResponeBody(res)
 			}
 
+			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
+		})
+	}
+}
+
+func Test_handler_Withdraw(t *testing.T) {
+	defaultStorage := new(mockDbStorage)
+	defaultHandler := func() *handler {
+		return &handler{defaultStorage, secret}
+	}
+	defaultBody := func() string { return `{"order": "79927398713","sum": 5.0}` }
+	defaultNumber := 79927398713
+	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
+	tests := []struct {
+		name       string
+		code       int
+		token      string
+		body       func() string
+		getHandler func() *handler
+	}{
+		{
+			name: "успешная обработка запроса",
+			code: 200,
+
+			token: defaultToken,
+			body:  defaultBody,
+			getHandler: func() *handler {
+				storage := new(mockDbStorage)
+				storage.On("WithdrawFromAccount", "1", 5.0, defaultNumber).Return(nil)
+				return &handler{db: storage, secret: secret}
+			},
+		},
+		{
+			name:  "на счету недостаточно средств",
+			code:  402,
+			token: defaultToken,
+			body:  defaultBody,
+			getHandler: func() *handler {
+				storage := new(mockDbStorage)
+				storage.On("WithdrawFromAccount", "1", 5.0, defaultNumber).Return(db.ErrBalanceLimitExhausted)
+				return &handler{db: storage, secret: secret}
+			},
+		},
+		{
+			name: "неверный формат запроса",
+			code: 400,
+
+			token:      defaultToken,
+			body:       func() string { return "abc" },
+			getHandler: defaultHandler,
+		},
+		{
+			name: "пользователь не аутентифицирован",
+			code: 401,
+
+			token:      "wrong token",
+			body:       defaultBody,
+			getHandler: defaultHandler,
+		},
+		{
+			name: "неверный формат номера заказа",
+			code: 422,
+
+			token:      defaultToken,
+			body:       func() string { return `{"order": "799273987131","sum": 5.0}` },
+			getHandler: defaultHandler,
+		},
+		{
+			name:  "внутренняя ошибка сервера.",
+			code:  500,
+			token: defaultToken,
+			body:  defaultBody,
+			getHandler: func() *handler {
+				storage := new(mockDbStorage)
+				storage.On("WithdrawFromAccount", "1", 5.0, defaultNumber).Return(errors.New("unexpected error"))
+				return &handler{db: storage, secret: secret}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/api/user/balance/withdraw", bytes.NewReader([]byte(tt.body())))
+			request.Header.Set("Content-Type", "application/json")
+			request.AddCookie(&http.Cookie{Name: "token", Value: tt.token})
+
+			w := httptest.NewRecorder()
+			h := http.HandlerFunc(tt.getHandler().PostWithdraw)
+			h.ServeHTTP(w, request)
+			res := w.Result()
+			defer res.Body.Close()
 			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
 		})
 	}

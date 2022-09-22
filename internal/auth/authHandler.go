@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"gophermart/internal/db"
+	"gophermart/internal/utils"
 	"net/http"
 )
 
@@ -34,7 +35,7 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-	} else if token, err := getJWTToken(id, h.secret); err != nil {
+	} else if token, err := utils.GetJWTToken(id, h.secret); err != nil {
 		//todo add logger
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
@@ -61,7 +62,7 @@ func (h *handler) Auth(w http.ResponseWriter, r *http.Request) {
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-	} else if token, err := getJWTToken(id, h.secret); err != nil {
+	} else if token, err := utils.GetJWTToken(id, h.secret); err != nil {
 		//todo add logger
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {

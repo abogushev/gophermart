@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"gophermart/internal/order/model"
+	"gophermart/internal/utils"
 
 	accountModel "gophermart/internal/account/model/db"
 
@@ -21,6 +22,7 @@ type Storage interface {
 	GetOrders(userId string) ([]model.Order, error)
 
 	GetAccount(userId string) (*accountModel.Account, error)
+	WithdrawFromAccount(userId string, sum float64, number int) error
 }
 
 var ErrDuplicateLogin = errors.New("login already exist")
@@ -28,6 +30,8 @@ var ErrUserNotFound = errors.New("user not found")
 
 var ErrDuplicateOrder = errors.New("the order number has already been uploaded by this user")
 var ErrOrderOfAnotherUser = errors.New("the order number has already been uploaded by another user")
+
+var ErrBalanceLimitExhausted = errors.New("there are not enough funds in the account")
 
 type storageImpl struct {
 	url    string
@@ -80,7 +84,9 @@ const (
 		uploaded_at 
 	from orders where user_id = $1;`
 
-	getUserAccount = `select user_id, current, withdrawn from accounts where user_id = $1`
+	getUserAccount          = `select user_id, current, withdrawn from accounts where user_id = $1`
+	getUserAccountForUpdate = `select user_id, current, withdrawn from accounts where user_id = $1 for update`
+	updateAccount           = `update accounts set current = $2, withdrawn = $3 where user_id = $1`
 )
 
 func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Storage, error) {
@@ -197,4 +203,37 @@ func (db *storageImpl) GetAccount(userId string) (*accountModel.Account, error) 
 	}
 
 	return &account, nil
+}
+
+func (db *storageImpl) WithdrawFromAccount(userId string, sum float64, number int) error {
+	tx, err := db.xdb.Beginx()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var acc accountModel.Account
+	err = db.xdb.GetContext(db.ctx, &acc, getUserAccountForUpdate, userId)
+	if err == sql.ErrNoRows {
+		return ErrUserNotFound
+	} else if err != nil {
+		return err
+	}
+
+	withdraw := utils.GetPersistentAccrual(sum)
+	if acc.Current < withdraw {
+		return ErrBalanceLimitExhausted
+	}
+	newCurrent := acc.Current - withdraw
+	newWithdrawn := acc.Withdrawn + withdraw
+
+	if _, err := db.xdb.ExecContext(db.ctx, updateAccount, acc.UserId, newCurrent, newWithdrawn); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }

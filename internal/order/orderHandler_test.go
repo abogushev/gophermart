@@ -45,6 +45,9 @@ func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
 func (m *mockDbStorage) GetAccount(userId string) (*accountModel.Account, error) {
 	return nil, nil
 }
+func (m *mockDbStorage) WithdrawFromAccount(userId string, sum float64, number int) error {
+	return nil
+}
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 

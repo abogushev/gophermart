@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
+	"gophermart/internal/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -41,6 +42,10 @@ func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
 
 func (m *mockDbStorage) GetAccount(userId string) (*accountModel.Account, error) {
 	return nil, nil
+}
+
+func (m *mockDbStorage) WithdrawFromAccount(userId string, sum float64, number int) error {
+	return nil
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
@@ -300,7 +305,7 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 	tokenFound := false
 	for i := 0; i < len(cookies); i++ {
 		if cookies[i].Name == "token" {
-			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{Id: id}).SignedString([]byte(key))
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, utils.UserClaims{Id: id}).SignedString([]byte(key))
 			assert.NoError(t, err, "unexpected exception in validateToken")
 			assert.Equal(t, "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A", token, "bad token")
 			tokenFound = true
@@ -314,7 +319,7 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 
 func TestJWT(t *testing.T) {
 	secret := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
-	token, _ := getJWTToken("1", secret)
-	result, _ := GetIdFromJWTToken(token, secret)
+	token, _ := utils.GetJWTToken("1", secret)
+	result, _ := utils.GetIdFromJWTToken(token, secret)
 	assert.Equal(t, "1", result)
 }

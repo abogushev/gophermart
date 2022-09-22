@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"gophermart/internal/order/model"
 	"testing"
 	"time"
@@ -231,8 +230,6 @@ func Test_storageImpl_GetOrders(t *testing.T) {
 					{Number: 2, UserId: "cfbe7630-32b3-11ed-a261-0242ac120002", Status: model.Processed, UploadedAt: uploadedAt, Accrual: 10},
 				}
 				assert.NoError(t, err)
-				fmt.Println(arr)
-				fmt.Println(expected)
 
 				assert.Equal(t, expected, arr)
 			},
@@ -263,7 +260,7 @@ func Test_storageImpl_GetAccount(t *testing.T) {
 			check: func(acc *accountModel.Account, err error) {
 				assert.NoError(t, err)
 				expected := &accountModel.Account{"cfbe7630-32b3-11ed-a261-0242ac120002", 10, 10}
-				assert.Equal(t, expected, expected)
+				assert.Equal(t, expected, acc)
 			},
 		},
 		{
@@ -281,6 +278,59 @@ func Test_storageImpl_GetAccount(t *testing.T) {
 			beforeTest()
 			tt.prepare()
 			tt.check(db.GetAccount("cfbe7630-32b3-11ed-a261-0242ac120002"))
+		})
+	}
+}
+
+func Test_storageImpl_WithdrawFromAccount(t *testing.T) {
+	db := initNewDB(t)
+	tests := []struct {
+		name    string
+		sum     float64
+		prepare func()
+		check   func(error)
+	}{
+		{
+			name: "successfull withdraw",
+			sum:  5.0,
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+				xdb.MustExec(`insert into accounts(user_id, current, withdrawn) values('cfbe7630-32b3-11ed-a261-0242ac120002', 1000, 1000)`)
+			},
+			check: func(err error) {
+				assert.NoError(t, err)
+				var userId string
+				assert.NoError(t, xdb.Get(&userId, "select user_id from accounts where user_id = 'cfbe7630-32b3-11ed-a261-0242ac120002' and current = 500 and withdrawn = 1500"))
+			},
+		},
+		{
+			name: "user not found",
+			sum:  5.0,
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120003', 'login','password');`)
+				xdb.MustExec(`insert into accounts(user_id, current, withdrawn) values('cfbe7630-32b3-11ed-a261-0242ac120003', 1000, 1000)`)
+			},
+			check: func(err error) {
+				assert.ErrorIs(t, err, ErrUserNotFound)
+			},
+		},
+		{
+			name: "fail withdraw: out of limit",
+			sum:  5.0,
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+				xdb.MustExec(`insert into accounts(user_id, current, withdrawn) values('cfbe7630-32b3-11ed-a261-0242ac120002', 10, 10)`)
+			},
+			check: func(err error) {
+				assert.ErrorIs(t, err, ErrBalanceLimitExhausted)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			beforeTest()
+			tt.prepare()
+			tt.check(db.WithdrawFromAccount("cfbe7630-32b3-11ed-a261-0242ac120002", tt.sum, 1))
 		})
 	}
 }
