@@ -7,6 +7,7 @@ import (
 	"time"
 
 	accountModel "gophermart/internal/account/model/db"
+	withdrawalsModel "gophermart/internal/withdrawals/model/db"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -23,12 +24,14 @@ var connURL = "host=localhost port=5432 user=postgres dbname=postgres sslmode=di
 var xdb = sqlx.MustConnect("postgres", connURL)
 
 func dropTables() {
+	xdb.MustExec("drop table if exists withdrawals;")
 	xdb.MustExec("drop table if exists orders;")
 	xdb.MustExec("drop table if exists accounts;")
 	xdb.MustExec(`drop table if exists users;`)
 }
 
 func beforeTest() {
+	xdb.MustExec("delete from withdrawals;")
 	xdb.MustExec(`delete from orders;`)
 	xdb.MustExec(`delete from accounts;`)
 	xdb.MustExec(`delete from users;`)
@@ -331,6 +334,57 @@ func Test_storageImpl_WithdrawFromAccount(t *testing.T) {
 			beforeTest()
 			tt.prepare()
 			tt.check(db.WithdrawFromAccount("cfbe7630-32b3-11ed-a261-0242ac120002", tt.sum, 1))
+		})
+	}
+}
+
+func Test_storageImpl_GetWithdrawals(t *testing.T) {
+	db := initNewDB(t)
+	tests := []struct {
+		name    string
+		prepare func()
+		check   func([]withdrawalsModel.Withdrawals, error)
+	}{
+		{
+			name: "GetWithdrawals successful",
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+				xdb.MustExec(`insert into withdrawals(
+					user_id,
+					number,
+					sum,
+					processed_at) values
+					(
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						1,
+						10,
+						'2020-12-10T15:15:45+03:00'
+					),
+					(
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						2,
+						10,
+						'2020-12-10T15:15:45+03:00'
+					)
+				`)
+			},
+			check: func(arr []withdrawalsModel.Withdrawals, err error) {
+				tm, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
+				processedAt := tm.In(arr[0].ProcessedAt.Location())
+				expected := []withdrawalsModel.Withdrawals{
+					{"cfbe7630-32b3-11ed-a261-0242ac120002", 10, 1, processedAt},
+					{"cfbe7630-32b3-11ed-a261-0242ac120002", 10, 2, processedAt},
+				}
+				assert.NoError(t, err)
+				assert.Equal(t, expected, arr)
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			beforeTest()
+			tt.prepare()
+			tt.check(db.GetWithdrawals("cfbe7630-32b3-11ed-a261-0242ac120002"))
 		})
 	}
 }

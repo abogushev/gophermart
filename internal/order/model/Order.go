@@ -2,7 +2,7 @@ package model
 
 import (
 	"gophermart/internal/order/model/api"
-	"math"
+	"gophermart/internal/utils"
 	"time"
 )
 
@@ -29,18 +29,13 @@ type Order struct {
 	Accrual    int64       `db:"accrual"` //целая часть * 100 + дробная часть
 }
 
-func (order *Order) getAccrual() float64 {
-	return float64(order.Accrual/100) + float64(order.Accrual%100)/100
-}
-
 func NewOrder(number int, userId string, status OrderStatus, accrual float64) *Order {
-	integer, fraction := math.Modf(accrual)
-	return &Order{Number: number, UserId: userId, Status: status, Accrual: int64(integer*100 + fraction*100)}
+	return &Order{Number: number, UserId: userId, Status: status, Accrual: utils.GetPersistentAccrual(accrual)}
 }
 
 func (o *Order) ToApi() api.Order {
 	s := ""
-	accrual := o.getAccrual()
+	accrual := utils.GetApiAccrual(o.Accrual)
 
 	switch o.Status {
 	case New:

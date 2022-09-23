@@ -8,6 +8,7 @@ import (
 	"gophermart/internal/utils"
 
 	accountModel "gophermart/internal/account/model/db"
+	withdrawalsModel "gophermart/internal/withdrawals/model/db"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -23,6 +24,7 @@ type Storage interface {
 
 	GetAccount(userId string) (*accountModel.Account, error)
 	WithdrawFromAccount(userId string, sum float64, number int) error
+	GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error)
 }
 
 var ErrDuplicateLogin = errors.New("login already exist")
@@ -67,6 +69,16 @@ const (
 		FOREIGN KEY(user_id) 
 		REFERENCES users(id)
 	);
+
+	create table if not exists withdrawals(
+		user_id UUID,
+		number integer not null unique,
+		sum integer not null,
+		processed_at timestamp with time zone not null default now(),
+		CONSTRAINT fk_user
+		FOREIGN KEY(user_id) 
+		REFERENCES users(id)
+	);
 	`
 
 	getUserIdByLoginPasswordSQL = `select id from users where login = $1 and password = $2;`
@@ -82,11 +94,13 @@ const (
 		user_id,
 		accrual,
 		uploaded_at 
-	from orders where user_id = $1;`
+	from orders where user_id = $1 order by uploaded_at asc;`
 
-	getUserAccount          = `select user_id, current, withdrawn from accounts where user_id = $1`
-	getUserAccountForUpdate = `select user_id, current, withdrawn from accounts where user_id = $1 for update`
-	updateAccount           = `update accounts set current = $2, withdrawn = $3 where user_id = $1`
+	getUserAccount                  = `select user_id, current, withdrawn from accounts where user_id = $1`
+	getUserAccountForUpdate         = `select user_id, current, withdrawn from accounts where user_id = $1 for update`
+	updateAccount                   = `update accounts set current = $2, withdrawn = $3 where user_id = $1`
+	insertWithdrawals               = `insert into withdrawals(user_id,number,sum) values($1,$2,$3);`
+	selectAllwithdrawalsOfUserIdSQL = `select user_id,number,sum,processed_at from withdrawals where user_id = $1 order by processed_at asc`
 )
 
 func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Storage, error) {
@@ -236,4 +250,12 @@ func (db *storageImpl) WithdrawFromAccount(userId string, sum float64, number in
 	}
 
 	return nil
+}
+
+func (db *storageImpl) GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error) {
+	withdrawals := []withdrawalsModel.Withdrawals{}
+	if err := db.xdb.SelectContext(db.ctx, &withdrawals, selectAllwithdrawalsOfUserIdSQL, userId); err != nil {
+		return nil, err
+	}
+	return withdrawals, nil
 }
