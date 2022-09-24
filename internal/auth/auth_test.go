@@ -20,41 +20,41 @@ import (
 	withdrawalsModel "gophermart/internal/withdrawals/model/db"
 )
 
-type mockDbStorage struct {
+type mockDBStorage struct {
 	mock.Mock
 }
 
-func (m *mockDbStorage) Register(login string, password string) (string, error) {
+func (m *mockDBStorage) Register(login string, password string) (string, error) {
 	args := m.Called(login, password)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockDbStorage) GetByLoginPassword(login string, password string) (string, error) {
+func (m *mockDBStorage) GetByLoginPassword(login string, password string) (string, error) {
 	args := m.Called(login, password)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockDbStorage) SaveOrder(userId string, number int) error {
+func (m *mockDBStorage) SaveOrder(UserID string, number int) error {
 	return nil
 }
 
-func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
+func (m *mockDBStorage) GetOrders(UserID string) ([]model.Order, error) {
 	return nil, nil
 }
 
-func (m *mockDbStorage) GetAccount(userId string) (*accountModel.Account, error) {
+func (m *mockDBStorage) GetAccount(UserID string) (*accountModel.Account, error) {
 	return nil, nil
 }
 
-func (m *mockDbStorage) WithdrawFromAccount(userId string, sum float64, number int) error {
+func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number int) error {
 	return nil
 }
 
-func (m *mockDbStorage) GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error) {
+func (m *mockDBStorage) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdrawals, error) {
 	return nil, nil
 }
 
-func (m *mockDbStorage) CalcAmounts(offset, limit int,
+func (m *mockDBStorage) CalcAmounts(offset, limit int,
 	updF func(nums []int64) map[int64]db.CalcAmountsUpdateResult) (int, error) {
 	return 0, nil
 }
@@ -63,7 +63,7 @@ var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fG
 var logger = zap.NewExample().Sugar()
 
 func TestRegistration(t *testing.T) {
-	defaultStorage := new(mockDbStorage)
+	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
 		return &handler{defaultStorage, secret, logger}
 	}
@@ -87,7 +87,7 @@ func TestRegistration(t *testing.T) {
 				return fmt.Sprintf(`{"login": "%v","password": "%v"}`, login, password)
 			},
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("Register", "login", "password").Return("1", nil)
 				return &handler{storage, secret, logger}
 			},
@@ -141,7 +141,7 @@ func TestRegistration(t *testing.T) {
 				return fmt.Sprintf(`{"login": "%v","password": "%v"}`, login, password)
 			},
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("Register", "already_taken_login", "password").Return("", db.ErrDuplicateLogin)
 				return &handler{storage, secret, logger}
 			},
@@ -155,7 +155,7 @@ func TestRegistration(t *testing.T) {
 				return fmt.Sprintf(`{"login": "%v","password": "%v"}`, login, password)
 			},
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("Register", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
 				return &handler{storage, secret, logger}
 			},
@@ -181,7 +181,7 @@ func TestRegistration(t *testing.T) {
 }
 
 func TestAuth(t *testing.T) {
-	defaultStorage := new(mockDbStorage)
+	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
 		return &handler{defaultStorage, secret, logger}
 	}
@@ -205,7 +205,7 @@ func TestAuth(t *testing.T) {
 				return fmt.Sprintf(`{"login": "%v","password": "%v"}`, login, password)
 			},
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "login", "password").Return("1", nil)
 				return &handler{storage, secret, logger}
 			},
@@ -259,7 +259,7 @@ func TestAuth(t *testing.T) {
 				return fmt.Sprintf(`{"login": "%v","password": "%v"}`, login, password)
 			},
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "incorrect_login", "password").Return("", db.ErrUserNotFound)
 				return &handler{storage, secret, logger}
 			},
@@ -273,7 +273,7 @@ func TestAuth(t *testing.T) {
 				return fmt.Sprintf(`{"login": "%v","password": "%v"}`, login, password)
 			},
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "login", "incorrect_password").Return("", db.ErrUserNotFound)
 				return &handler{storage, secret, logger}
 			},
@@ -287,7 +287,7 @@ func TestAuth(t *testing.T) {
 				return fmt.Sprintf(`{"login": "%v","password": "%v"}`, login, password)
 			},
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
 				return &handler{storage, secret, logger}
 			},
@@ -317,7 +317,7 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 	tokenFound := false
 	for i := 0; i < len(cookies); i++ {
 		if cookies[i].Name == "token" {
-			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, utils.UserClaims{Id: id}).SignedString([]byte(key))
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, utils.UserClaims{ID: id}).SignedString([]byte(key))
 			assert.NoError(t, err, "unexpected exception in validateToken")
 			assert.Equal(t, "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A", token, "bad token")
 			tokenFound = true
@@ -332,6 +332,6 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 func TestJWT(t *testing.T) {
 	secret := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 	token, _ := utils.GetJWTToken("1", secret)
-	result, _ := utils.GetIdFromJWTToken(token, secret)
+	result, _ := utils.GetIDFromJWTToken(token, secret)
 	assert.Equal(t, "1", result)
 }

@@ -5,11 +5,11 @@ import (
 )
 
 type Account struct {
-	UserId    string `db:"user_id"`
+	UserID    string `db:"user_id"`
 	Current   int64  `db:"current"`
 	Withdrawn int64  `db:"withdrawn"`
 }
 
-func (a *Account) ToApi() api.Account {
+func (a *Account) ToAPI() api.Account {
 	return api.Account{Current: a.Current, Withdrawn: a.Withdrawn}
 }

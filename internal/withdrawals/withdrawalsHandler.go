@@ -14,10 +14,10 @@ type handler struct {
 }
 
 func (h *handler) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
-	if userId, isAuthed := utils.GetUserId(r, h.secret); !isAuthed {
+	if UserID, isAuthed := utils.GetUserID(r, h.secret); !isAuthed {
 		// 401 — пользователь не авторизован.
 		w.WriteHeader(http.StatusUnauthorized)
-	} else if withdrawals, err := h.db.GetWithdrawals(userId); err != nil {
+	} else if withdrawals, err := h.db.GetWithdrawals(UserID); err != nil {
 		// 500 — внутренняя ошибка сервера.
 		w.WriteHeader(http.StatusInternalServerError)
 	} else if len(withdrawals) == 0 {
@@ -28,7 +28,7 @@ func (h *handler) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		apiWithdrawals := make([]api.Withdrawals, len(withdrawals))
 		for i := 0; i < len(apiWithdrawals); i++ {
-			apiWithdrawals[i] = withdrawals[i].ToApi()
+			apiWithdrawals[i] = withdrawals[i].ToAPI()
 		}
 		json.NewEncoder(w).Encode(apiWithdrawals)
 	}

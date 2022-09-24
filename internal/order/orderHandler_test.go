@@ -22,40 +22,40 @@ import (
 	withdrawalsModel "gophermart/internal/withdrawals/model/db"
 )
 
-type mockDbStorage struct {
+type mockDBStorage struct {
 	mock.Mock
 }
 
-func (m *mockDbStorage) Register(login string, password string) (string, error) {
+func (m *mockDBStorage) Register(login string, password string) (string, error) {
 	return "", nil
 }
 
-func (m *mockDbStorage) GetByLoginPassword(login string, password string) (string, error) {
+func (m *mockDBStorage) GetByLoginPassword(login string, password string) (string, error) {
 	return "", nil
 }
 
-func (m *mockDbStorage) SaveOrder(userId string, number int) error {
-	args := m.Called(userId, number)
+func (m *mockDBStorage) SaveOrder(UserID string, number int) error {
+	args := m.Called(UserID, number)
 	return args.Error(0)
 }
 
-func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
-	args := m.Called(userId)
+func (m *mockDBStorage) GetOrders(UserID string) ([]model.Order, error) {
+	args := m.Called(UserID)
 	return args.Get(0).([]model.Order), args.Error(1)
 }
 
-func (m *mockDbStorage) GetAccount(userId string) (*accountModel.Account, error) {
+func (m *mockDBStorage) GetAccount(UserID string) (*accountModel.Account, error) {
 	return nil, nil
 }
-func (m *mockDbStorage) WithdrawFromAccount(userId string, sum float64, number int) error {
+func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number int) error {
 	return nil
 }
 
-func (m *mockDbStorage) GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error) {
+func (m *mockDBStorage) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdrawals, error) {
 	return nil, nil
 }
 
-func (m *mockDbStorage) CalcAmounts(offset, limit int,
+func (m *mockDBStorage) CalcAmounts(offset, limit int,
 	updF func(nums []int64) map[int64]db.CalcAmountsUpdateResult) (int, error) {
 	return 0, nil
 }
@@ -64,7 +64,7 @@ var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fG
 var logger = zap.NewExample().Sugar()
 
 func Test_handler_PostOrder(t *testing.T) {
-	defaultStorage := new(mockDbStorage)
+	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
 		return &handler{defaultStorage, secret, logger}
 	}
@@ -86,7 +86,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			token:  defaultToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(db.ErrDuplicateOrder)
 				return &handler{db: storage, secret: secret, logger: logger}
 			},
@@ -98,7 +98,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			token:  defaultToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(nil)
 				return &handler{db: storage, secret: secret, logger: logger}
 			},
@@ -126,7 +126,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			token:  defaultToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(db.ErrOrderOfAnotherUser)
 				return &handler{db: storage, secret: secret, logger: logger}
 			},
@@ -146,7 +146,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			token:  defaultToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(errors.New("unexpected exception"))
 				return &handler{db: storage, secret: secret, logger: logger}
 			},
@@ -169,7 +169,7 @@ func Test_handler_PostOrder(t *testing.T) {
 }
 
 func Test_handler_GetOrders(t *testing.T) {
-	defaultStorage := new(mockDbStorage)
+	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
 		return &handler{defaultStorage, secret, logger}
 	}
@@ -186,7 +186,7 @@ func Test_handler_GetOrders(t *testing.T) {
 			code:  200,
 			token: defaultToken,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				result := make([]model.Order, 4)
 				result[0] = *model.NewOrder(9278923470, "1", model.Processed, 500.0)
 				result[1] = *model.NewOrder(12345678903, "1", model.Processing, 0)
@@ -219,7 +219,7 @@ func Test_handler_GetOrders(t *testing.T) {
 			code:  204,
 			token: defaultToken,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetOrders", "1").Return(make([]model.Order, 0), nil)
 				return &handler{db: storage, secret: secret, logger: logger}
 			},
@@ -240,7 +240,7 @@ func Test_handler_GetOrders(t *testing.T) {
 			code:  500,
 			token: defaultToken,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetOrders", "1").Return([]model.Order{}, errors.New("unexpected exception"))
 				return &handler{db: storage, secret: secret, logger: logger}
 			},

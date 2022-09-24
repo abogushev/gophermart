@@ -23,19 +23,19 @@ const (
 
 type Order struct {
 	Number     int         `db:"number"`
-	UserId     string      `db:"user_id"`
+	UserID     string      `db:"user_id"`
 	Status     OrderStatus `db:"status"`
 	UploadedAt time.Time   `db:"uploaded_at"`
 	Accrual    int64       `db:"accrual"` //целая часть * 100 + дробная часть
 }
 
-func NewOrder(number int, userId string, status OrderStatus, accrual float64) *Order {
-	return &Order{Number: number, UserId: userId, Status: status, Accrual: utils.GetPersistentAccrual(accrual)}
+func NewOrder(number int, UserID string, status OrderStatus, accrual float64) *Order {
+	return &Order{Number: number, UserID: UserID, Status: status, Accrual: utils.GetPersistentAccrual(accrual)}
 }
 
-func (o *Order) ToApi() api.Order {
+func (o *Order) ToAPI() api.Order {
 	s := ""
-	accrual := utils.GetApiAccrual(o.Accrual)
+	accrual := utils.GetAPIAccrual(o.Accrual)
 
 	switch o.Status {
 	case New:
@@ -53,5 +53,5 @@ func (o *Order) ToApi() api.Order {
 		ac = &accrual
 	}
 
-	return api.Order{Number: o.Number, UserId: o.UserId, Status: s, UploadedAt: o.UploadedAt, Accrual: ac}
+	return api.Order{Number: o.Number, UserID: o.UserID, Status: s, UploadedAt: o.UploadedAt, Accrual: ac}
 }

@@ -23,12 +23,12 @@ type CalcAmountsUpdateResult struct {
 type Storage interface {
 	Register(login, password string) (string, error)
 	GetByLoginPassword(login, password string) (string, error)
-	SaveOrder(userId string, number int) error
-	GetOrders(userId string) ([]model.Order, error)
+	SaveOrder(UserID string, number int) error
+	GetOrders(UserID string) ([]model.Order, error)
 
-	GetAccount(userId string) (*accountModel.Account, error)
-	WithdrawFromAccount(userId string, sum float64, number int) error
-	GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error)
+	GetAccount(UserID string) (*accountModel.Account, error)
+	WithdrawFromAccount(UserID string, sum float64, number int) error
+	GetWithdrawals(UserID string) ([]withdrawalsModel.Withdrawals, error)
 	CalcAmounts(offset, limit int,
 		updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error)
 }
@@ -87,13 +87,13 @@ const (
 	);
 	`
 
-	getUserIdByLoginPasswordSQL = `select id from users where login = $1 and password = $2;`
+	getUserIDByLoginPasswordSQL = `select id from users where login = $1 and password = $2;`
 	getCountByLoginPasswordSQL  = `select count(*) from users where login = $1 and password = $2;`
 	insertUserSQL               = `insert into users(id, login, password) values($1,$2,$3) returning id;`
 
-	getOrderUserIdSQL          = `select user_id from orders where number = $1;`
+	getOrderUserIDSQL          = `select user_id from orders where number = $1;`
 	saveOrderSQL               = `insert into orders(user_id, number) values($1,$2);`
-	selectAllOrdersOfUserIdSQL = `
+	selectAllOrdersOfUserIDSQL = `
 	select
 		number,
 		status,
@@ -106,7 +106,7 @@ const (
 	getUserAccountForUpdate         = `select user_id, current, withdrawn from accounts where user_id = $1 for update`
 	updateAccount                   = `update accounts set current = $2, withdrawn = $3 where user_id = $1`
 	insertWithdrawals               = `insert into withdrawals(user_id,number,sum) values($1,$2,$3);`
-	selectAllwithdrawalsOfUserIdSQL = `select user_id,number,sum,processed_at from withdrawals where user_id = $1 order by processed_at asc`
+	selectAllwithdrawalsOfUserIDSQL = `select user_id,number,sum,processed_at from withdrawals where user_id = $1 order by processed_at asc`
 
 	selectOrdersForCalc = `select number from orders where status = 0 or status = 1 offset $1 limit $2 for update`
 	updateOrdersForCalc = `update orders set status = $2, accrual = $3 where number = $1`
@@ -164,7 +164,7 @@ func (db *storageImpl) Register(login, password string) (string, error) {
 
 func (db *storageImpl) GetByLoginPassword(login, password string) (string, error) {
 	var id string
-	err := db.xdb.GetContext(db.ctx, &id, getUserIdByLoginPasswordSQL, login, password)
+	err := db.xdb.GetContext(db.ctx, &id, getUserIDByLoginPasswordSQL, login, password)
 	if err == sql.ErrNoRows {
 		return "", ErrUserNotFound
 	} else if err != nil {
@@ -174,28 +174,28 @@ func (db *storageImpl) GetByLoginPassword(login, password string) (string, error
 	return id, nil
 }
 
-func (db *storageImpl) SaveOrder(userId string, number int) error {
+func (db *storageImpl) SaveOrder(UserID string, number int) error {
 	tx, err := db.xdb.Beginx()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	var orderUserId string
-	err = db.xdb.GetContext(db.ctx, &orderUserId, getOrderUserIdSQL, number)
+	var orderUserID string
+	err = db.xdb.GetContext(db.ctx, &orderUserID, getOrderUserIDSQL, number)
 
 	if err != nil && err != sql.ErrNoRows {
 		return err
 	}
 
 	if err == nil {
-		if orderUserId == userId {
+		if orderUserID == UserID {
 			return ErrDuplicateOrder
 		}
 		return ErrOrderOfAnotherUser
 	}
 
-	if _, err = db.xdb.ExecContext(db.ctx, saveOrderSQL, userId, number); err != nil {
+	if _, err = db.xdb.ExecContext(db.ctx, saveOrderSQL, UserID, number); err != nil {
 		return err
 	}
 
@@ -206,9 +206,9 @@ func (db *storageImpl) SaveOrder(userId string, number int) error {
 	return nil
 }
 
-func (db *storageImpl) GetOrders(userId string) ([]model.Order, error) {
+func (db *storageImpl) GetOrders(UserID string) ([]model.Order, error) {
 	orders := []model.Order{}
-	if err := db.xdb.SelectContext(db.ctx, &orders, selectAllOrdersOfUserIdSQL, userId); err != nil {
+	if err := db.xdb.SelectContext(db.ctx, &orders, selectAllOrdersOfUserIDSQL, UserID); err != nil {
 		return nil, err
 	}
 	return orders, nil
@@ -216,9 +216,9 @@ func (db *storageImpl) GetOrders(userId string) ([]model.Order, error) {
 
 //Account
 
-func (db *storageImpl) GetAccount(userId string) (*accountModel.Account, error) {
+func (db *storageImpl) GetAccount(UserID string) (*accountModel.Account, error) {
 	var account accountModel.Account
-	err := db.xdb.GetContext(db.ctx, &account, getUserAccount, userId)
+	err := db.xdb.GetContext(db.ctx, &account, getUserAccount, UserID)
 	if err == sql.ErrNoRows {
 		return nil, ErrUserNotFound
 	} else if err != nil {
@@ -228,7 +228,7 @@ func (db *storageImpl) GetAccount(userId string) (*accountModel.Account, error) 
 	return &account, nil
 }
 
-func (db *storageImpl) WithdrawFromAccount(userId string, sum float64, number int) error {
+func (db *storageImpl) WithdrawFromAccount(UserID string, sum float64, number int) error {
 	tx, err := db.xdb.Beginx()
 	if err != nil {
 		return err
@@ -236,7 +236,7 @@ func (db *storageImpl) WithdrawFromAccount(userId string, sum float64, number in
 	defer tx.Rollback()
 
 	var acc accountModel.Account
-	err = db.xdb.GetContext(db.ctx, &acc, getUserAccountForUpdate, userId)
+	err = db.xdb.GetContext(db.ctx, &acc, getUserAccountForUpdate, UserID)
 	if err == sql.ErrNoRows {
 		return ErrUserNotFound
 	} else if err != nil {
@@ -250,7 +250,7 @@ func (db *storageImpl) WithdrawFromAccount(userId string, sum float64, number in
 	newCurrent := acc.Current - withdraw
 	newWithdrawn := acc.Withdrawn + withdraw
 
-	if _, err := db.xdb.ExecContext(db.ctx, updateAccount, acc.UserId, newCurrent, newWithdrawn); err != nil {
+	if _, err := db.xdb.ExecContext(db.ctx, updateAccount, acc.UserID, newCurrent, newWithdrawn); err != nil {
 		return err
 	}
 
@@ -261,9 +261,9 @@ func (db *storageImpl) WithdrawFromAccount(userId string, sum float64, number in
 	return nil
 }
 
-func (db *storageImpl) GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error) {
+func (db *storageImpl) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdrawals, error) {
 	withdrawals := []withdrawalsModel.Withdrawals{}
-	if err := db.xdb.SelectContext(db.ctx, &withdrawals, selectAllwithdrawalsOfUserIdSQL, userId); err != nil {
+	if err := db.xdb.SelectContext(db.ctx, &withdrawals, selectAllwithdrawalsOfUserIDSQL, UserID); err != nil {
 		return nil, err
 	}
 	return withdrawals, nil

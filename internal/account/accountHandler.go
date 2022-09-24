@@ -22,11 +22,11 @@ func NewAccountHandler(db db.Storage, secret string, logger *zap.SugaredLogger) 
 }
 
 func (h *handler) GetAccount(w http.ResponseWriter, r *http.Request) {
-	if userId, isAuthed := utils.GetUserId(r, h.secret); !isAuthed {
+	if UserID, isAuthed := utils.GetUserID(r, h.secret); !isAuthed {
 		// 401 — пользователь не авторизован.
 		h.logger.Warn("failed to auth user")
 		w.WriteHeader(http.StatusUnauthorized)
-	} else if account, err := h.db.GetAccount(userId); err != nil {
+	} else if account, err := h.db.GetAccount(UserID); err != nil {
 		if err == db.ErrUserNotFound {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
@@ -36,7 +36,7 @@ func (h *handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(account.ToApi())
+		json.NewEncoder(w).Encode(account.ToAPI())
 	}
 }
 
@@ -47,7 +47,7 @@ type WithdrawData struct {
 
 func (h *handler) PostWithdraw(w http.ResponseWriter, r *http.Request) {
 	var withdrawData WithdrawData
-	if userId, isAuthed := utils.GetUserId(r, h.secret); !isAuthed {
+	if UserID, isAuthed := utils.GetUserID(r, h.secret); !isAuthed {
 		w.WriteHeader(http.StatusUnauthorized)
 		h.logger.Warn("failed to auth user")
 	} else if err := json.NewDecoder(r.Body).Decode(&withdrawData); err != nil {
@@ -59,7 +59,7 @@ func (h *handler) PostWithdraw(w http.ResponseWriter, r *http.Request) {
 	} else if !utils.IsValidOrder(order) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		h.logger.Warnf("failed to PostWithdraw: invalid order")
-	} else if err := h.db.WithdrawFromAccount(userId, withdrawData.Sum, order); err != nil {
+	} else if err := h.db.WithdrawFromAccount(UserID, withdrawData.Sum, order); err != nil {
 		if errors.Is(err, db.ErrUserNotFound) {
 			// 404 - account not found
 			w.WriteHeader(http.StatusNotFound)

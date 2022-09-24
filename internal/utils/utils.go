@@ -7,7 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-func GetApiAccrual(a int64) float64 {
+func GetAPIAccrual(a int64) float64 {
 	return float64(a/100) + float64(a%100)/100
 }
 
@@ -16,12 +16,12 @@ func GetPersistentAccrual(a float64) int64 {
 	return int64(integer*100 + fraction*100)
 }
 
-func GetUserId(r *http.Request, secret string) (string, bool) {
+func GetUserID(r *http.Request, secret string) (string, bool) {
 	//todo log
 
 	if token, err := r.Cookie("token"); err != nil {
 		return "", false
-	} else if id, err := GetIdFromJWTToken(token.Value, secret); err != nil {
+	} else if id, err := GetIDFromJWTToken(token.Value, secret); err != nil {
 		return "", false
 	} else {
 		return id, true
@@ -29,15 +29,15 @@ func GetUserId(r *http.Request, secret string) (string, bool) {
 }
 
 type UserClaims struct {
-	Id string `json:"id"`
+	ID string `json:"id"`
 	jwt.StandardClaims
 }
 
 func GetJWTToken(id string, secret string) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{Id: id}).SignedString([]byte(secret))
+	return jwt.NewWithClaims(jwt.SigningMethodHS512, UserClaims{ID: id}).SignedString([]byte(secret))
 }
 
-func GetIdFromJWTToken(tokenString string, secret string) (string, error) {
+func GetIDFromJWTToken(tokenString string, secret string) (string, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
@@ -46,7 +46,7 @@ func GetIdFromJWTToken(tokenString string, secret string) (string, error) {
 	}
 
 	if claims, ok := token.Claims.(*UserClaims); ok && token.Valid {
-		return claims.Id, nil
+		return claims.ID, nil
 	} else {
 		return "", err
 	}

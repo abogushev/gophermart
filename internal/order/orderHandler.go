@@ -24,7 +24,7 @@ func NewHandler(db db.Storage, secret string, logger *zap.SugaredLogger) *handle
 }
 
 func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
-	if userId, isAuthed := utils.GetUserId(r, h.secret); !isAuthed {
+	if UserID, isAuthed := utils.GetUserID(r, h.secret); !isAuthed {
 		h.logger.Warnf("failed to auth")
 		w.WriteHeader(http.StatusUnauthorized)
 	} else if body, err := io.ReadAll(r.Body); err != nil {
@@ -36,7 +36,7 @@ func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
 	} else if !utils.IsValidOrder(order) {
 		h.logger.Warnf("failed to PostOrder: invalid order number")
 		w.WriteHeader(http.StatusUnprocessableEntity)
-	} else if err := h.db.SaveOrder(userId, order); err != nil {
+	} else if err := h.db.SaveOrder(UserID, order); err != nil {
 		if errors.Is(err, db.ErrDuplicateOrder) {
 			// 200 -  номер заказа уже был загружен этим пользователем;
 			h.logger.Warnf("failed to PostOrder: %w", err)
@@ -57,11 +57,11 @@ func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) GetOrders(w http.ResponseWriter, r *http.Request) {
-	if userId, isAuthed := utils.GetUserId(r, h.secret); !isAuthed {
+	if UserID, isAuthed := utils.GetUserID(r, h.secret); !isAuthed {
 		// 401 — пользователь не авторизован.
 		h.logger.Warnf("failed to auth")
 		w.WriteHeader(http.StatusUnauthorized)
-	} else if orders, err := h.db.GetOrders(userId); err != nil {
+	} else if orders, err := h.db.GetOrders(UserID); err != nil {
 		// 500 — внутренняя ошибка сервера.
 		h.logger.Errorf("failed to GetOrders: %w", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -73,7 +73,7 @@ func (h *handler) GetOrders(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		apiOrders := make([]api.Order, len(orders))
 		for i := 0; i < len(orders); i++ {
-			apiOrders[i] = orders[i].ToApi()
+			apiOrders[i] = orders[i].ToAPI()
 		}
 		json.NewEncoder(w).Encode(apiOrders)
 	}

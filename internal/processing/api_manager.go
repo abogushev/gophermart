@@ -27,7 +27,7 @@ type response struct {
 	Accrual float64 `json:"accrual"`
 }
 
-const url = "http:///api/orders/%s"
+const url = "http:///api/orders/%v"
 
 type ProcessResult int
 
@@ -90,7 +90,7 @@ func (m *apiManager) updF(nums []int64) map[int64]db.CalcAmountsUpdateResult {
 		if accrual, respResult, err := m.getCalc(nums[i]); err != nil {
 			m.logger.Errorf("update order by number %v failed: %w", nums[i], err)
 		} else {
-			result[nums[i]] = db.CalcAmountsUpdateResult{accrual, mapResultOnStatus(respResult)}
+			result[nums[i]] = db.CalcAmountsUpdateResult{Accrual: accrual, Status: mapResultOnStatus(respResult)}
 		}
 	}
 	return result

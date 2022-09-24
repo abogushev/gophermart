@@ -135,7 +135,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		userId  string
+		UserID  string
 		order   int
 		prepare func()
 		check   func(error)
@@ -143,7 +143,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 		{
 			// новый номер заказа принят в обработку;
 			name:   "save order success",
-			userId: "cfbe7630-32b3-11ed-a261-0242ac120002",
+			UserID: "cfbe7630-32b3-11ed-a261-0242ac120002",
 			order:  1,
 			prepare: func() {
 				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
@@ -157,7 +157,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 		{
 			// номер заказа уже был загружен этим пользователем;
 			name:   "save order failed: duplicate order",
-			userId: "cfbe7630-32b3-11ed-a261-0242ac120002",
+			UserID: "cfbe7630-32b3-11ed-a261-0242ac120002",
 			order:  1,
 			prepare: func() {
 				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
@@ -170,7 +170,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 		{
 			// номер заказа уже был загружен другим пользователем
 			name:   "save order failed: another user's order",
-			userId: "cfbe7630-32b3-11ed-a261-0242ac120002",
+			UserID: "cfbe7630-32b3-11ed-a261-0242ac120002",
 			order:  1,
 			prepare: func() {
 				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
@@ -228,8 +228,8 @@ func Test_storageImpl_GetOrders(t *testing.T) {
 				tm, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
 				uploadedAt := tm.In(arr[0].UploadedAt.Location())
 				expected := []model.Order{
-					{Number: 1, UserId: "cfbe7630-32b3-11ed-a261-0242ac120002", Status: model.New, UploadedAt: uploadedAt, Accrual: 0},
-					{Number: 2, UserId: "cfbe7630-32b3-11ed-a261-0242ac120002", Status: model.Processed, UploadedAt: uploadedAt, Accrual: 10},
+					{Number: 1, UserID: "cfbe7630-32b3-11ed-a261-0242ac120002", Status: model.New, UploadedAt: uploadedAt, Accrual: 0},
+					{Number: 2, UserID: "cfbe7630-32b3-11ed-a261-0242ac120002", Status: model.Processed, UploadedAt: uploadedAt, Accrual: 10},
 				}
 				assert.NoError(t, err)
 
@@ -261,7 +261,7 @@ func Test_storageImpl_GetAccount(t *testing.T) {
 			},
 			check: func(acc *accountModel.Account, err error) {
 				assert.NoError(t, err)
-				expected := &accountModel.Account{"cfbe7630-32b3-11ed-a261-0242ac120002", 10, 10}
+				expected := &accountModel.Account{UserID: "cfbe7630-32b3-11ed-a261-0242ac120002", Current: 10, Withdrawn: 10}
 				assert.Equal(t, expected, acc)
 			},
 		},
@@ -301,8 +301,8 @@ func Test_storageImpl_WithdrawFromAccount(t *testing.T) {
 			},
 			check: func(err error) {
 				assert.NoError(t, err)
-				var userId string
-				assert.NoError(t, xdb.Get(&userId, "select user_id from accounts where user_id = 'cfbe7630-32b3-11ed-a261-0242ac120002' and current = 500 and withdrawn = 1500"))
+				var UserID string
+				assert.NoError(t, xdb.Get(&UserID, "select user_id from accounts where user_id = 'cfbe7630-32b3-11ed-a261-0242ac120002' and current = 500 and withdrawn = 1500"))
 			},
 		},
 		{
@@ -371,8 +371,8 @@ func Test_storageImpl_GetWithdrawals(t *testing.T) {
 				tm, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
 				processedAt := tm.In(arr[0].ProcessedAt.Location())
 				expected := []withdrawalsModel.Withdrawals{
-					{"cfbe7630-32b3-11ed-a261-0242ac120002", 10, 1, processedAt},
-					{"cfbe7630-32b3-11ed-a261-0242ac120002", 10, 2, processedAt},
+					{UserID: "cfbe7630-32b3-11ed-a261-0242ac120002", Sum: 10, Number: 1, ProcessedAt: processedAt},
+					{UserID: "cfbe7630-32b3-11ed-a261-0242ac120002", Sum: 10, Number: 2, ProcessedAt: processedAt},
 				}
 				assert.NoError(t, err)
 				assert.Equal(t, expected, arr)
@@ -441,8 +441,8 @@ func Test_storageImpl_CalcAmounts(t *testing.T) {
 			},
 			updF: func(nums []int64) map[int64]CalcAmountsUpdateResult {
 				m := make(map[int64]CalcAmountsUpdateResult)
-				m[1] = CalcAmountsUpdateResult{10, 3}
-				m[2] = CalcAmountsUpdateResult{10, 3}
+				m[1] = CalcAmountsUpdateResult{Accrual: 10, Status: 3}
+				m[2] = CalcAmountsUpdateResult{Accrual: 10, Status: 3}
 
 				return m
 			},

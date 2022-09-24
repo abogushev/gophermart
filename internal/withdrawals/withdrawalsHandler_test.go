@@ -19,39 +19,39 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type mockDbStorage struct {
+type mockDBStorage struct {
 	mock.Mock
 }
 
-func (m *mockDbStorage) Register(login string, password string) (string, error) {
+func (m *mockDBStorage) Register(login string, password string) (string, error) {
 	return "", nil
 }
 
-func (m *mockDbStorage) GetByLoginPassword(login string, password string) (string, error) {
+func (m *mockDBStorage) GetByLoginPassword(login string, password string) (string, error) {
 	return "", nil
 }
 
-func (m *mockDbStorage) SaveOrder(userId string, number int) error {
-	args := m.Called(userId, number)
+func (m *mockDBStorage) SaveOrder(UserID string, number int) error {
+	args := m.Called(UserID, number)
 	return args.Error(0)
 }
 
-func (m *mockDbStorage) GetOrders(userId string) ([]model.Order, error) {
-	args := m.Called(userId)
+func (m *mockDBStorage) GetOrders(UserID string) ([]model.Order, error) {
+	args := m.Called(UserID)
 	return args.Get(0).([]model.Order), args.Error(1)
 }
 
-func (m *mockDbStorage) GetAccount(userId string) (*accountModel.Account, error) {
+func (m *mockDBStorage) GetAccount(UserID string) (*accountModel.Account, error) {
 	return nil, nil
 }
-func (m *mockDbStorage) WithdrawFromAccount(userId string, sum float64, number int) error {
+func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number int) error {
 	return nil
 }
-func (m *mockDbStorage) GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error) {
-	args := m.Called(userId)
+func (m *mockDBStorage) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdrawals, error) {
+	args := m.Called(UserID)
 	return args.Get(0).([]withdrawalsModel.Withdrawals), args.Error(1)
 }
-func (m *mockDbStorage) CalcAmounts(offset, limit int,
+func (m *mockDBStorage) CalcAmounts(offset, limit int,
 	updF func(nums []int64) map[int64]db.CalcAmountsUpdateResult) (int, error) {
 	return 0, nil
 }
@@ -59,7 +59,7 @@ func (m *mockDbStorage) CalcAmounts(offset, limit int,
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 
 func Test_handler_GetWithdrawals(t *testing.T) {
-	defaultStorage := new(mockDbStorage)
+	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
 		return &handler{defaultStorage, secret}
 	}
@@ -76,7 +76,7 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 			code:  200,
 			token: defaultToken,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				result := make([]withdrawalsModel.Withdrawals, 1)
 				result[0] = *withdrawalsModel.NewWithdrawals("1", 10, 9278923470)
 				result[0].ProcessedAt, _ = time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
@@ -87,7 +87,7 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 			checkResponeBody: func(res *http.Response) {
 				processedAt, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
 				expected := make([]api.Withdrawals, 1)
-				expected[0] = api.Withdrawals{"9278923470", 10, processedAt}
+				expected[0] = api.Withdrawals{Order: "9278923470", Sum: 10, ProcessedAt: processedAt}
 
 				var result []api.Withdrawals
 				json.NewDecoder(res.Body).Decode(&result)
@@ -99,7 +99,7 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 			code:  204,
 			token: defaultToken,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetWithdrawals", "1").Return([]withdrawalsModel.Withdrawals{}, nil)
 				return &handler{db: storage, secret: secret}
 			},
@@ -120,7 +120,7 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 			code:  500,
 			token: defaultToken,
 			getHandler: func() *handler {
-				storage := new(mockDbStorage)
+				storage := new(mockDBStorage)
 				storage.On("GetWithdrawals", "1").Return([]withdrawalsModel.Withdrawals{}, errors.New("unexpected exception"))
 				return &handler{db: storage, secret: secret}
 			},
