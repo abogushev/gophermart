@@ -10,6 +10,7 @@ import (
 	"time"
 
 	accountModel "gophermart/internal/account/model/db"
+	"gophermart/internal/db"
 	"gophermart/internal/order/model"
 	"gophermart/internal/withdrawals/model/api"
 	withdrawalsModel "gophermart/internal/withdrawals/model/db"
@@ -49,6 +50,10 @@ func (m *mockDbStorage) WithdrawFromAccount(userId string, sum float64, number i
 func (m *mockDbStorage) GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error) {
 	args := m.Called(userId)
 	return args.Get(0).([]withdrawalsModel.Withdrawals), args.Error(1)
+}
+func (m *mockDbStorage) CalcAmounts(offset, limit int,
+	updF func(nums []int64) map[int64]db.CalcAmountsUpdateResult) (int, error) {
+	return 0, nil
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"

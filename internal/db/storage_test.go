@@ -2,12 +2,11 @@ package db
 
 import (
 	"context"
+	accountModel "gophermart/internal/account/model/db"
 	"gophermart/internal/order/model"
+	withdrawalsModel "gophermart/internal/withdrawals/model/db"
 	"testing"
 	"time"
-
-	accountModel "gophermart/internal/account/model/db"
-	withdrawalsModel "gophermart/internal/withdrawals/model/db"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -385,6 +384,84 @@ func Test_storageImpl_GetWithdrawals(t *testing.T) {
 			beforeTest()
 			tt.prepare()
 			tt.check(db.GetWithdrawals("cfbe7630-32b3-11ed-a261-0242ac120002"))
+		})
+	}
+}
+
+func Test_storageImpl_CalcAmounts(t *testing.T) {
+	db := initNewDB(t)
+	tests := []struct {
+		name    string
+		prepare func()
+		updF    func(nums []int64) map[int64]CalcAmountsUpdateResult
+		check   func(int, error)
+		offset  int
+		limit   int
+	}{
+		{
+			name: "successful CalcAmounts",
+			prepare: func() {
+				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+				xdb.MustExec(`
+				insert into orders(
+					number,
+					user_id,
+					status,
+					uploaded_at,
+					accrual) values
+					(
+						1,
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						0,
+						'2020-12-10T15:15:45+03:00',
+						0
+					),
+					(
+						2,
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						1,
+						'2020-12-10T15:15:45+03:00',
+						0
+					),
+					(
+						3,
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						2,
+						'2020-12-10T15:15:45+03:00',
+						0
+					),
+					(
+						4,
+						'cfbe7630-32b3-11ed-a261-0242ac120002',
+						3,
+						'2020-12-10T15:15:45+03:00',
+						0
+					)
+					`)
+			},
+			updF: func(nums []int64) map[int64]CalcAmountsUpdateResult {
+				m := make(map[int64]CalcAmountsUpdateResult)
+				m[1] = CalcAmountsUpdateResult{10, 3}
+				m[2] = CalcAmountsUpdateResult{10, 3}
+
+				return m
+			},
+			check: func(updated int, err error) {
+				assert.Equal(t, 2, updated)
+				assert.NoError(t, err)
+				var n int
+				assert.NoError(t, xdb.Get(&n, "select count(1) from orders where number in (1,2) and status = 3 and accrual = 10"))
+				assert.Equal(t, n, 2)
+			},
+			offset: 0,
+			limit:  10,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			beforeTest()
+			tt.prepare()
+			tt.check(db.CalcAmounts(tt.offset, tt.limit, tt.updF))
 		})
 	}
 }

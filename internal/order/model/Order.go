@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-type OrderStatus int
-
 /*
 NEW — заказ загружен в систему, но не попал в обработку;
 PROCESSING — вознаграждение за заказ рассчитывается;
 INVALID — система расчёта вознаграждений отказала в расчёте;
 PROCESSED — данные по заказу проверены и информация о расчёте успешно получена.
 */
+type OrderStatus int
+
 const (
 	New OrderStatus = iota
 	Processing

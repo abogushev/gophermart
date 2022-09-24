@@ -16,6 +16,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type CalcAmountsUpdateResult struct {
+	Accrual float64
+	Status  model.OrderStatus
+}
 type Storage interface {
 	Register(login, password string) (string, error)
 	GetByLoginPassword(login, password string) (string, error)
@@ -25,6 +29,8 @@ type Storage interface {
 	GetAccount(userId string) (*accountModel.Account, error)
 	WithdrawFromAccount(userId string, sum float64, number int) error
 	GetWithdrawals(userId string) ([]withdrawalsModel.Withdrawals, error)
+	CalcAmounts(offset, limit int,
+		updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error)
 }
 
 var ErrDuplicateLogin = errors.New("login already exist")
@@ -101,6 +107,9 @@ const (
 	updateAccount                   = `update accounts set current = $2, withdrawn = $3 where user_id = $1`
 	insertWithdrawals               = `insert into withdrawals(user_id,number,sum) values($1,$2,$3);`
 	selectAllwithdrawalsOfUserIdSQL = `select user_id,number,sum,processed_at from withdrawals where user_id = $1 order by processed_at asc`
+
+	selectOrdersForCalc = `select number from orders where status = 0 or status = 1 offset $1 limit $2 for update`
+	updateOrdersForCalc = `update orders set status = $2, accrual = $3 where number = $1`
 )
 
 func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Storage, error) {
@@ -258,4 +267,37 @@ func (db *storageImpl) GetWithdrawals(userId string) ([]withdrawalsModel.Withdra
 		return nil, err
 	}
 	return withdrawals, nil
+}
+
+func (db *storageImpl) CalcAmounts(offset, limit int,
+	updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error) {
+
+	tx, err := db.xdb.Beginx()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
+	nums := []int64{}
+	if err := db.xdb.SelectContext(db.ctx, &nums, selectOrdersForCalc, offset, limit); err != nil {
+		return 0, err
+	}
+
+	if len(nums) != 0 {
+		updates := updF(nums)
+		for num, accAndStatus := range updates {
+			if _, err := db.xdb.ExecContext(db.ctx, updateOrdersForCalc, num, accAndStatus.Status, accAndStatus.Accrual); err != nil {
+				if err := tx.Rollback(); err != nil {
+					return 0, err
+				}
+				return 0, err
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	return len(nums), nil
 }
