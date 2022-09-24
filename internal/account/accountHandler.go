@@ -7,16 +7,24 @@ import (
 	"gophermart/internal/utils"
 	"net/http"
 	"strconv"
+
+	"go.uber.org/zap"
 )
 
 type handler struct {
 	db     db.Storage
 	secret string
+	logger *zap.SugaredLogger
+}
+
+func NewAccountHandler(db db.Storage, secret string, logger *zap.SugaredLogger) *handler {
+	return &handler{db, secret, logger}
 }
 
 func (h *handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 	if userId, isAuthed := utils.GetUserId(r, h.secret); !isAuthed {
 		// 401 — пользователь не авторизован.
+		h.logger.Warn("failed to auth user")
 		w.WriteHeader(http.StatusUnauthorized)
 	} else if account, err := h.db.GetAccount(userId); err != nil {
 		if err == db.ErrUserNotFound {
@@ -24,6 +32,7 @@ func (h *handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+		h.logger.Warnf("failed to auth: %w", err)
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -40,12 +49,16 @@ func (h *handler) PostWithdraw(w http.ResponseWriter, r *http.Request) {
 	var withdrawData WithdrawData
 	if userId, isAuthed := utils.GetUserId(r, h.secret); !isAuthed {
 		w.WriteHeader(http.StatusUnauthorized)
+		h.logger.Warn("failed to auth user")
 	} else if err := json.NewDecoder(r.Body).Decode(&withdrawData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		h.logger.Warnf("failed to PostWithdraw: %w", err)
 	} else if order, err := strconv.Atoi(withdrawData.Order); err != nil || withdrawData.Sum < 0 {
 		w.WriteHeader(http.StatusBadRequest)
+		h.logger.Warnf("failed to PostWithdraw: %w", err)
 	} else if !utils.IsValidOrder(order) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
+		h.logger.Warnf("failed to PostWithdraw: invalid order")
 	} else if err := h.db.WithdrawFromAccount(userId, withdrawData.Sum, order); err != nil {
 		if errors.Is(err, db.ErrUserNotFound) {
 			// 404 - account not found
@@ -57,6 +70,7 @@ func (h *handler) PostWithdraw(w http.ResponseWriter, r *http.Request) {
 			// 500 — внутренняя ошибка сервера.
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+		h.logger.Warnf("failed to PostWithdraw: %w", err)
 	} else {
 		// 202 -  новый номер заказа принят в обработку;
 		w.WriteHeader(http.StatusOK)

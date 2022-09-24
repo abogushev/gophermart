@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/caarlos0/env/v6 v6.10.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-chi/chi v1.5.4 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible

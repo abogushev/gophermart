@@ -14,6 +14,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 
 	accountModel "gophermart/internal/account/model/db"
 	withdrawalsModel "gophermart/internal/withdrawals/model/db"
@@ -59,11 +60,12 @@ func (m *mockDbStorage) CalcAmounts(offset, limit int,
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
+var logger = zap.NewExample().Sugar()
 
 func TestRegistration(t *testing.T) {
 	defaultStorage := new(mockDbStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret}
+		return &handler{defaultStorage, secret, logger}
 	}
 
 	tests := []struct {
@@ -87,7 +89,7 @@ func TestRegistration(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("Register", "login", "password").Return("1", nil)
-				return &handler{storage, secret}
+				return &handler{storage, secret, logger}
 			},
 		},
 		{
@@ -141,7 +143,7 @@ func TestRegistration(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("Register", "already_taken_login", "password").Return("", db.ErrDuplicateLogin)
-				return &handler{storage, secret}
+				return &handler{storage, secret, logger}
 			},
 		},
 		{
@@ -155,7 +157,7 @@ func TestRegistration(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("Register", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
-				return &handler{storage, secret}
+				return &handler{storage, secret, logger}
 			},
 		},
 	}
@@ -181,7 +183,7 @@ func TestRegistration(t *testing.T) {
 func TestAuth(t *testing.T) {
 	defaultStorage := new(mockDbStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret}
+		return &handler{defaultStorage, secret, logger}
 	}
 
 	tests := []struct {
@@ -205,7 +207,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("GetByLoginPassword", "login", "password").Return("1", nil)
-				return &handler{storage, secret}
+				return &handler{storage, secret, logger}
 			},
 		},
 		{
@@ -259,7 +261,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("GetByLoginPassword", "incorrect_login", "password").Return("", db.ErrUserNotFound)
-				return &handler{storage, secret}
+				return &handler{storage, secret, logger}
 			},
 		},
 		{
@@ -273,7 +275,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("GetByLoginPassword", "login", "incorrect_password").Return("", db.ErrUserNotFound)
-				return &handler{storage, secret}
+				return &handler{storage, secret, logger}
 			},
 		},
 		{
@@ -287,7 +289,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("GetByLoginPassword", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
-				return &handler{storage, secret}
+				return &handler{storage, secret, logger}
 			},
 		},
 	}

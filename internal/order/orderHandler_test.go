@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.uber.org/zap"
 
 	accountModel "gophermart/internal/account/model/db"
 	withdrawalsModel "gophermart/internal/withdrawals/model/db"
@@ -60,11 +61,12 @@ func (m *mockDbStorage) CalcAmounts(offset, limit int,
 }
 
 var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
+var logger = zap.NewExample().Sugar()
 
 func Test_handler_PostOrder(t *testing.T) {
 	defaultStorage := new(mockDbStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret}
+		return &handler{defaultStorage, secret, logger}
 	}
 	defaultBody := func(number int) string { return strconv.Itoa(number) }
 	defaultNumber := 79927398713
@@ -86,7 +88,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(db.ErrDuplicateOrder)
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: secret, logger: logger}
 			},
 		},
 		{
@@ -98,7 +100,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(nil)
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: secret, logger: logger}
 			},
 		},
 		{
@@ -126,7 +128,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(db.ErrOrderOfAnotherUser)
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: secret, logger: logger}
 			},
 		},
 		{
@@ -146,7 +148,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(errors.New("unexpected exception"))
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: secret, logger: logger}
 			},
 		},
 	}
@@ -169,7 +171,7 @@ func Test_handler_PostOrder(t *testing.T) {
 func Test_handler_GetOrders(t *testing.T) {
 	defaultStorage := new(mockDbStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret}
+		return &handler{defaultStorage, secret, logger}
 	}
 	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
 	tests := []struct {
@@ -195,7 +197,7 @@ func Test_handler_GetOrders(t *testing.T) {
 				}
 
 				storage.On("GetOrders", "1").Return(result, nil)
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: secret, logger: logger}
 			},
 			checkResponeBody: func(res *http.Response) {
 				uploadedAt, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
@@ -219,7 +221,7 @@ func Test_handler_GetOrders(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("GetOrders", "1").Return(make([]model.Order, 0), nil)
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: secret, logger: logger}
 			},
 			checkResponeBody: func(res *http.Response) {
 				var result []api.Order
@@ -240,7 +242,7 @@ func Test_handler_GetOrders(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDbStorage)
 				storage.On("GetOrders", "1").Return([]model.Order{}, errors.New("unexpected exception"))
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: secret, logger: logger}
 			},
 		},
 	}

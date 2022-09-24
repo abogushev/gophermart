@@ -116,7 +116,7 @@ func (m *apiManager) runCollectСalcs() {
 var once sync.Once
 
 func RunDaemon(client http.Client, db db.Storage, logger *zap.SugaredLogger, ctx context.Context, wg *sync.WaitGroup) {
-	once.Do(func() {
+	go once.Do(func() {
 		wg.Add(1)
 		defer wg.Done()
 
