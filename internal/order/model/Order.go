@@ -3,6 +3,7 @@ package model
 import (
 	"gophermart/internal/order/model/api"
 	"gophermart/internal/utils"
+	"strconv"
 	"time"
 )
 
@@ -53,5 +54,5 @@ func (o *Order) ToAPI() api.Order {
 		ac = &accrual
 	}
 
-	return api.Order{Number: o.Number, UserID: o.UserID, Status: s, UploadedAt: o.UploadedAt, Accrual: ac}
+	return api.Order{Number: strconv.Itoa(o.Number), UserID: o.UserID, Status: s, UploadedAt: o.UploadedAt, Accrual: ac}
 }

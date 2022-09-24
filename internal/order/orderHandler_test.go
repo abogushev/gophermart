@@ -204,10 +204,10 @@ func Test_handler_GetOrders(t *testing.T) {
 				expected := make([]api.Order, 4)
 				prcsAcc := 500.0
 
-				expected[0] = api.Order{Number: 9278923470, UserID: "1", Status: "PROCESSED", UploadedAt: uploadedAt, Accrual: &prcsAcc}
-				expected[1] = api.Order{Number: 12345678903, UserID: "1", Status: "PROCESSING", UploadedAt: uploadedAt, Accrual: nil}
-				expected[2] = api.Order{Number: 346436439, UserID: "1", Status: "INVALID", UploadedAt: uploadedAt, Accrual: nil}
-				expected[3] = api.Order{Number: 346436431, UserID: "1", Status: "NEW", UploadedAt: uploadedAt, Accrual: nil}
+				expected[0] = api.Order{Number: "9278923470", UserID: "1", Status: "PROCESSED", UploadedAt: uploadedAt, Accrual: &prcsAcc}
+				expected[1] = api.Order{Number: "12345678903", UserID: "1", Status: "PROCESSING", UploadedAt: uploadedAt, Accrual: nil}
+				expected[2] = api.Order{Number: "346436439", UserID: "1", Status: "INVALID", UploadedAt: uploadedAt, Accrual: nil}
+				expected[3] = api.Order{Number: "346436431", UserID: "1", Status: "NEW", UploadedAt: uploadedAt, Accrual: nil}
 
 				var result []api.Order
 				json.NewDecoder(res.Body).Decode(&result)

@@ -17,7 +17,7 @@ import (
 )
 
 type CalcAmountsUpdateResult struct {
-	Accrual float64
+	Accrual int64
 	Status  model.OrderStatus
 }
 type Storage interface {

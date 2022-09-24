@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
+	"gophermart/internal/utils"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -90,7 +91,7 @@ func (m *apiManager) updF(nums []int64) map[int64]db.CalcAmountsUpdateResult {
 		if accrual, respResult, err := m.getCalc(nums[i]); err != nil {
 			m.logger.Errorf("update order by number %v failed: %w", nums[i], err)
 		} else {
-			result[nums[i]] = db.CalcAmountsUpdateResult{Accrual: accrual, Status: mapResultOnStatus(respResult)}
+			result[nums[i]] = db.CalcAmountsUpdateResult{Accrual: utils.GetPersistentAccrual(accrual), Status: mapResultOnStatus(respResult)}
 		}
 	}
 	return result
