@@ -87,7 +87,7 @@ func Test_handler_GetAccount(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 
-				storage.On("GetAccount", "1").Return(accountModel.Account{UserID: "1", 10, Withdrawn: 10}, nil)
+				storage.On("GetAccount", "1").Return(accountModel.Account{UserID: "1", Current: 10, Withdrawn: 10}, nil)
 				return &handler{db: storage, secret: secret, logger: logger}
 			},
 			checkResponeBody: func(res *http.Response) {
