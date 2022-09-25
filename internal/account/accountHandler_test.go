@@ -98,7 +98,7 @@ func Test_handler_GetAccount(t *testing.T) {
 		},
 		{
 			name:  "нет счета",
-			code:  404,
+			code:  204,
 			token: defaultToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)

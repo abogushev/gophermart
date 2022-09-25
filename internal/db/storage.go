@@ -256,6 +256,10 @@ func (db *storageImpl) WithdrawFromAccount(UserID string, sum float64, number ui
 		return err
 	}
 
+	if _, err := db.xdb.ExecContext(db.ctx, insertWithdrawals, UserID, number, withdraw); err != nil {
+		return err
+	}
+
 	if err := tx.Commit(); err != nil {
 		return err
 	}

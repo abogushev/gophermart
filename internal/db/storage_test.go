@@ -303,6 +303,7 @@ func Test_storageImpl_WithdrawFromAccount(t *testing.T) {
 				assert.NoError(t, err)
 				var UserID string
 				assert.NoError(t, xdb.Get(&UserID, "select user_id from accounts where user_id = 'cfbe7630-32b3-11ed-a261-0242ac120002' and current = 500 and withdrawn = 1500"))
+				assert.NoError(t, xdb.Get(&UserID, "select user_id from withdrawals where user_id = 'cfbe7630-32b3-11ed-a261-0242ac120002' and number = 1 and sum = 500"))
 			},
 		},
 		{
