@@ -13,5 +13,6 @@ type Config struct {
 func NewConfig() (*Config, error) {
 	var cfg Config
 	err := env.Parse(&cfg)
+
 	return &cfg, err
 }
