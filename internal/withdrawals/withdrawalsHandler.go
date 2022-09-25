@@ -26,7 +26,7 @@ func (h *handler) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		apiWithdrawals := make([]api.Withdrawals, len(withdrawals))
+		apiWithdrawals := make([]api.Withdrawals, 0)
 		for i := 0; i < len(apiWithdrawals); i++ {
 			// apiWithdrawals[i] = withdrawals[i].ToAPI()
 		}
