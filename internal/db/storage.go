@@ -109,7 +109,7 @@ const (
 
 	selectOrdersForCalc         = `select number from orders where status = 0 or status = 1 offset $1 limit $2 for update`
 	updateOrdersForCalc         = `update orders set status = $2, accrual = $3 where number = $1`
-	selectAccountAccuralForCalc = `select user_id, sum(accrual) as sum from orders where number in ($1) group by user_id;`
+	selectAccountAccuralForCalc = `select user_id, sum(accrual) as sum from orders where number in (?) group by user_id;`
 	addAccountAccuralForCalc    = `update accounts set current = current + $2 where user_id = $1`
 )
 
@@ -268,6 +268,11 @@ func (db *storageImpl) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdra
 	return withdrawals, nil
 }
 
+type userIdSum struct {
+	userId string `db:"user_id"`
+	sum    int64  `db:"sum"`
+}
+
 func (db *storageImpl) CalcAmounts(offset, limit int, updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error) {
 	tx, err := db.xdb.Beginx()
 	if err != nil {
@@ -290,12 +295,24 @@ func (db *storageImpl) CalcAmounts(offset, limit int, updF func(nums []int64) ma
 				return 0, err
 			}
 		}
-		userIdUpd := make([]struct {
-			userId string `db:"user_id"`
-			sum    int64  `db:"sum"`
-		}, 0)
-		if err := db.xdb.SelectContext(db.ctx, userIdUpd, selectAccountAccuralForCalc, nums); err != nil {
+
+		userIdUpd := make([]userIdSum, 0)
+		query, args, err := sqlx.In(selectAccountAccuralForCalc, nums)
+		if err != nil {
 			return 0, err
+		}
+		query = db.xdb.Rebind(query)
+
+		if rows, err := db.xdb.QueryContext(db.ctx, query, args...); err != nil {
+			return 0, err
+		} else {
+			for rows.Next() {
+				var r userIdSum
+				if err := rows.Scan(&r.userId, &r.sum); err != nil {
+					return 0, err
+				}
+				userIdUpd = append(userIdUpd, r)
+			}
 		}
 		for i := 0; i < len(userIdUpd); i++ {
 			if _, err := db.xdb.ExecContext(db.ctx, addAccountAccuralForCalc, userIdUpd[i].userId, userIdUpd[i].sum); err != nil {

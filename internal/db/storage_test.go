@@ -402,6 +402,7 @@ func Test_storageImpl_CalcAmounts(t *testing.T) {
 			name: "successful CalcAmounts",
 			prepare: func() {
 				xdb.MustExec(`insert into users(id, login, password) values('cfbe7630-32b3-11ed-a261-0242ac120002', 'login','password');`)
+				xdb.MustExec(`insert into accounts(user_id, current, withdrawn) values('cfbe7630-32b3-11ed-a261-0242ac120002', 0, 0)`)
 				xdb.MustExec(`
 				insert into orders(
 					number,
@@ -451,7 +452,9 @@ func Test_storageImpl_CalcAmounts(t *testing.T) {
 				assert.NoError(t, err)
 				var n int
 				assert.NoError(t, xdb.Get(&n, "select count(1) from orders where number in (1,2) and status = 3 and accrual = 10"))
-				assert.Equal(t, n, 2)
+				assert.Equal(t, 2, n)
+				assert.NoError(t, xdb.Get(&n, "select count(1) from accounts where user_id = 'cfbe7630-32b3-11ed-a261-0242ac120002' and current = 20"))
+				assert.Equal(t, 1, n)
 			},
 			offset: 0,
 			limit:  10,
