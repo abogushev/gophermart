@@ -30,6 +30,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("failed to parse config, %w", err)
 	}
+	logger.Debug(cnfg)
 	storage, err := db.NewStorage(cnfg.DBURL, ctx, logger)
 	if err != nil {
 		logger.Fatalf("failed to create storage, %w", err)
@@ -38,7 +39,7 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
-	processing.RunDaemon(http.Client{}, storage, logger, ctx, wg)
+	processing.RunDaemon(http.Client{}, cnfg.ProcessingAddress, storage, logger, ctx, wg)
 	mainServer.Run(storage, secret, cnfg, logger, ctx)
 
 	wg.Wait()

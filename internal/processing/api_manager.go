@@ -18,6 +18,7 @@ import (
 
 type apiManager struct {
 	client http.Client
+	host   string
 	db     db.Storage
 	logger *zap.SugaredLogger
 }
@@ -28,7 +29,7 @@ type response struct {
 	Accrual float64 `json:"accrual"`
 }
 
-const url = "http:///api/orders/%v"
+const url = "%v/api/orders/%v"
 
 type ProcessResult int
 
@@ -53,7 +54,7 @@ func getResult(status string) (ProcessResult, error) {
 }
 
 func (m *apiManager) getCalc(number int64) (float64, ProcessResult, error) {
-	if r, err := m.client.Get(fmt.Sprintf(url, number)); err != nil {
+	if r, err := m.client.Get(fmt.Sprintf(url, m.host, number)); err != nil {
 		return 0, Undefined, err
 	} else {
 		defer r.Body.Close()
@@ -116,13 +117,13 @@ func (m *apiManager) runCollectСalcs() {
 
 var once sync.Once
 
-func RunDaemon(client http.Client, db db.Storage, logger *zap.SugaredLogger, ctx context.Context, wg *sync.WaitGroup) {
+func RunDaemon(client http.Client, host string, db db.Storage, logger *zap.SugaredLogger, ctx context.Context, wg *sync.WaitGroup) {
 	go once.Do(func() {
 		wg.Add(1)
 		defer wg.Done()
 
 		ticker := time.NewTicker(time.Second * 1)
-		m := &apiManager{client, db, logger}
+		m := &apiManager{client, host, db, logger}
 		select {
 		case <-ticker.C:
 			logger.Infof("run update orders...")
