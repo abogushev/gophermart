@@ -109,7 +109,7 @@ const (
 
 	selectOrdersForCalc         = `select number from orders where status = 0 or status = 1 offset $1 limit $2 for update`
 	updateOrdersForCalc         = `update orders set status = $2, accrual = $3 where number = $1`
-	selectAccountAccuralForCalc = `select user_id, sum(accrual) from orders where number in ($1) group by user_id;`
+	selectAccountAccuralForCalc = `select user_id, sum(accrual) as sum from orders where number in ($1) group by user_id;`
 	addAccountAccuralForCalc    = `update accounts set current = current + $2 where user_id = $1`
 )
 
