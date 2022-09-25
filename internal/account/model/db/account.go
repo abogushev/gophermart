@@ -2,6 +2,7 @@ package db
 
 import (
 	"gophermart/internal/account/model/api"
+	"gophermart/internal/utils"
 )
 
 type Account struct {
@@ -11,5 +12,5 @@ type Account struct {
 }
 
 func (a *Account) ToAPI() api.Account {
-	return api.Account{Current: a.Current, Withdrawn: a.Withdrawn}
+	return api.Account{Current: utils.GetAPIAccrual(a.Current), Withdrawn: utils.GetAPIAccrual(a.Withdrawn)}
 }
