@@ -13,6 +13,10 @@ type handler struct {
 	secret string
 }
 
+func NewHandler(db db.Storage, secret string) *handler {
+	return &handler{db, secret}
+}
+
 func (h *handler) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 	if UserID, isAuthed := utils.GetUserID(r, h.secret); !isAuthed {
 		// 401 — пользователь не авторизован.
@@ -26,9 +30,9 @@ func (h *handler) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		apiWithdrawals := make([]api.Withdrawals, 0)
+		apiWithdrawals := make([]api.Withdrawals, len(withdrawals))
 		for i := 0; i < len(apiWithdrawals); i++ {
-			// apiWithdrawals[i] = withdrawals[i].ToAPI()
+			apiWithdrawals[i] = withdrawals[i].ToAPI()
 		}
 		json.NewEncoder(w).Encode(apiWithdrawals)
 	}

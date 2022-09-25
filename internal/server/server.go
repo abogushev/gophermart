@@ -7,6 +7,7 @@ import (
 	"gophermart/internal/auth"
 	"gophermart/internal/db"
 	"gophermart/internal/order"
+	"gophermart/internal/withdrawals"
 	"net/http"
 
 	"gophermart/internal/config"
@@ -27,6 +28,7 @@ func Run(db db.Storage, authSecret string, cfg *config.Config, logger *zap.Sugar
 	authHandler := auth.NewHandler(db, authSecret, logger)
 	orderHandler := order.NewHandler(db, authSecret, logger)
 	accountHandler := account.NewAccountHandler(db, authSecret, logger)
+	withdrawalsHandler := withdrawals.NewHandler(db, authSecret)
 
 	r.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", authHandler.Register)
@@ -35,7 +37,7 @@ func Run(db db.Storage, authSecret string, cfg *config.Config, logger *zap.Sugar
 		r.Get("/orders", orderHandler.GetOrders)
 		r.Get("/balance", accountHandler.GetAccount)
 		r.Post("/balance/withdraw", accountHandler.PostWithdraw)
-		r.Get("/withdrawals", accountHandler.GetAccount)
+		r.Get("/withdrawals", withdrawalsHandler.GetWithdrawals)
 	})
 
 	server := &http.Server{Addr: cfg.Address, Handler: r}
