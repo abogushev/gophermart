@@ -136,7 +136,7 @@ func Test_storageImpl_SaveOrder(t *testing.T) {
 	tests := []struct {
 		name    string
 		UserID  string
-		order   int
+		order   uint64
 		prepare func()
 		check   func(error)
 	}{

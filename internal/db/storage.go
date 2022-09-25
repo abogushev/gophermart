@@ -23,14 +23,13 @@ type CalcAmountsUpdateResult struct {
 type Storage interface {
 	Register(login, password string) (string, error)
 	GetByLoginPassword(login, password string) (string, error)
-	SaveOrder(UserID string, number int) error
+	SaveOrder(UserID string, number uint64) error
 	GetOrders(UserID string) ([]model.Order, error)
 
 	GetAccount(UserID string) (*accountModel.Account, error)
-	WithdrawFromAccount(UserID string, sum float64, number int) error
+	WithdrawFromAccount(UserID string, sum float64, number uint64) error
 	GetWithdrawals(UserID string) ([]withdrawalsModel.Withdrawals, error)
-	CalcAmounts(offset, limit int,
-		updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error)
+	CalcAmounts(offset, limit int, updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error)
 }
 
 var ErrDuplicateLogin = errors.New("login already exist")
@@ -57,7 +56,7 @@ const (
 	);
 
 	create table if not exists orders (
-		number integer primary key,
+		number bigint primary key,
 		user_id UUID,
 		status int not null default 0,
 		uploaded_at timestamp with time zone not null default now(),
@@ -78,7 +77,7 @@ const (
 
 	create table if not exists withdrawals(
 		user_id UUID,
-		number integer not null unique,
+		number bigint not null unique,
 		sum integer not null,
 		processed_at timestamp with time zone not null default now(),
 		CONSTRAINT fk_user
@@ -174,7 +173,7 @@ func (db *storageImpl) GetByLoginPassword(login, password string) (string, error
 	return id, nil
 }
 
-func (db *storageImpl) SaveOrder(UserID string, number int) error {
+func (db *storageImpl) SaveOrder(UserID string, number uint64) error {
 	tx, err := db.xdb.Beginx()
 	if err != nil {
 		return err
@@ -228,7 +227,7 @@ func (db *storageImpl) GetAccount(UserID string) (*accountModel.Account, error) 
 	return &account, nil
 }
 
-func (db *storageImpl) WithdrawFromAccount(UserID string, sum float64, number int) error {
+func (db *storageImpl) WithdrawFromAccount(UserID string, sum float64, number uint64) error {
 	tx, err := db.xdb.Beginx()
 	if err != nil {
 		return err
@@ -269,9 +268,7 @@ func (db *storageImpl) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdra
 	return withdrawals, nil
 }
 
-func (db *storageImpl) CalcAmounts(offset, limit int,
-	updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error) {
-
+func (db *storageImpl) CalcAmounts(offset, limit int, updF func(nums []int64) map[int64]CalcAmountsUpdateResult) (int, error) {
 	tx, err := db.xdb.Beginx()
 	if err != nil {
 		return 0, err

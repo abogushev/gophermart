@@ -34,7 +34,7 @@ func (m *mockDBStorage) GetByLoginPassword(login string, password string) (strin
 	return "", nil
 }
 
-func (m *mockDBStorage) SaveOrder(UserID string, number int) error {
+func (m *mockDBStorage) SaveOrder(UserID string, number uint64) error {
 	args := m.Called(UserID, number)
 	return args.Error(0)
 }
@@ -47,7 +47,7 @@ func (m *mockDBStorage) GetOrders(UserID string) ([]model.Order, error) {
 func (m *mockDBStorage) GetAccount(UserID string) (*accountModel.Account, error) {
 	return nil, nil
 }
-func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number int) error {
+func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number uint64) error {
 	return nil
 }
 
@@ -68,15 +68,15 @@ func Test_handler_PostOrder(t *testing.T) {
 	defaultHandler := func() *handler {
 		return &handler{defaultStorage, secret, logger}
 	}
-	defaultBody := func(number int) string { return strconv.Itoa(number) }
-	defaultNumber := 79927398713
+	defaultBody := func(number uint64) string { return strconv.FormatUint(number, 10) }
+	var defaultNumber uint64 = 79927398713
 	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
 	tests := []struct {
 		name       string
 		code       int
 		token      string
-		number     int
-		body       func(number int) string
+		number     uint64
+		body       func(number uint64) string
 		getHandler func() *handler
 	}{
 		{
@@ -108,7 +108,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			code:       400,
 			number:     defaultNumber,
 			token:      defaultToken,
-			body:       func(number int) string { return "abc" },
+			body:       func(number uint64) string { return "abc" },
 			getHandler: defaultHandler,
 		},
 		{
@@ -136,7 +136,7 @@ func Test_handler_PostOrder(t *testing.T) {
 			code:       422,
 			number:     defaultNumber,
 			token:      defaultToken,
-			body:       func(number int) string { return strconv.Itoa(defaultNumber + 1) },
+			body:       func(number uint64) string { return strconv.FormatUint(defaultNumber+1, 10) },
 			getHandler: defaultHandler,
 		},
 		{

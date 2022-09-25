@@ -17,8 +17,6 @@ func GetPersistentAccrual(a float64) int64 {
 }
 
 func GetUserID(r *http.Request, secret string) (string, bool) {
-	//todo log
-
 	if token, err := r.Cookie("token"); err != nil {
 		return "", false
 	} else if id, err := GetIDFromJWTToken(token.Value, secret); err != nil {
@@ -53,12 +51,12 @@ func GetIDFromJWTToken(tokenString string, secret string) (string, error) {
 }
 
 // Valid check number is valid or not based on Luhn algorithm
-func IsValidOrder(number int) bool {
+func IsValidOrder(number uint64) bool {
 	return (number%10+checksum(number/10))%10 == 0
 }
 
-func checksum(number int) int {
-	var luhn int
+func checksum(number uint64) uint64 {
+	var luhn uint64
 
 	for i := 0; number > 0; i++ {
 		cur := number % 10

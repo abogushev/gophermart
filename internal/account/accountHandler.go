@@ -53,7 +53,7 @@ func (h *handler) PostWithdraw(w http.ResponseWriter, r *http.Request) {
 	} else if err := json.NewDecoder(r.Body).Decode(&withdrawData); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		h.logger.Warnf("failed to PostWithdraw: %w", err)
-	} else if order, err := strconv.Atoi(withdrawData.Order); err != nil || withdrawData.Sum < 0 {
+	} else if order, err := strconv.ParseUint(withdrawData.Order, 10, 64); err != nil || withdrawData.Sum < 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		h.logger.Warnf("failed to PostWithdraw: %w", err)
 	} else if !utils.IsValidOrder(order) {

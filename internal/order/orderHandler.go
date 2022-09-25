@@ -30,7 +30,7 @@ func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
 	} else if body, err := io.ReadAll(r.Body); err != nil {
 		h.logger.Warnf("failed to PostOrder: %w", err)
 		w.WriteHeader(http.StatusBadRequest)
-	} else if order, err := strconv.Atoi(string(body)); err != nil {
+	} else if order, err := strconv.ParseUint(string(body), 10, 64); err != nil {
 		h.logger.Warnf("failed to PostOrder: %w", err)
 		w.WriteHeader(http.StatusBadRequest)
 	} else if !utils.IsValidOrder(order) {

@@ -31,7 +31,7 @@ func (m *mockDBStorage) GetByLoginPassword(login string, password string) (strin
 	return "", nil
 }
 
-func (m *mockDBStorage) SaveOrder(UserID string, number int) error {
+func (m *mockDBStorage) SaveOrder(UserID string, number uint64) error {
 	args := m.Called(UserID, number)
 	return args.Error(0)
 }
@@ -47,7 +47,7 @@ func (m *mockDBStorage) GetAccount(UserID string) (*accountModel.Account, error)
 	return &r, args.Error(1)
 }
 
-func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number int) error {
+func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number uint64) error {
 	args := m.Called(UserID, sum, number)
 	r := args.Get(0)
 	if r == nil {
@@ -59,8 +59,7 @@ func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number i
 func (m *mockDBStorage) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdrawals, error) {
 	return nil, nil
 }
-func (m *mockDBStorage) CalcAmounts(offset, limit int,
-	updF func(nums []int64) map[int64]db.CalcAmountsUpdateResult) (int, error) {
+func (m *mockDBStorage) CalcAmounts(offset, limit int, updF func(nums []int64) map[int64]db.CalcAmountsUpdateResult) (int, error) {
 	return 0, nil
 }
 
@@ -154,7 +153,7 @@ func Test_handler_Withdraw(t *testing.T) {
 		return &handler{defaultStorage, secret, logger}
 	}
 	defaultBody := func() string { return `{"order": "79927398713","sum": 5.0}` }
-	defaultNumber := 79927398713
+	var defaultNumber uint64 = 79927398713
 	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
 	tests := []struct {
 		name       string

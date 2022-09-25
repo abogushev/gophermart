@@ -34,7 +34,7 @@ func (m *mockDBStorage) GetByLoginPassword(login string, password string) (strin
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockDBStorage) SaveOrder(UserID string, number int) error {
+func (m *mockDBStorage) SaveOrder(UserID string, number uint64) error {
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (m *mockDBStorage) GetAccount(UserID string) (*accountModel.Account, error)
 	return nil, nil
 }
 
-func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number int) error {
+func (m *mockDBStorage) WithdrawFromAccount(UserID string, sum float64, number uint64) error {
 	return nil
 }
 
