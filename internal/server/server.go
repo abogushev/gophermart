@@ -35,7 +35,7 @@ func Run(db db.Storage, authSecret string, cfg *config.Config, logger *zap.Sugar
 		r.Get("/orders", orderHandler.GetOrders)
 		r.Get("/balance", accountHandler.GetAccount)
 		r.Post("/balance/withdraw", accountHandler.PostWithdraw)
-		r.Get("/balance/withdrawals", accountHandler.GetAccount)
+		r.Get("/withdrawals", accountHandler.GetAccount)
 	})
 
 	server := &http.Server{Addr: cfg.Address, Handler: r}
