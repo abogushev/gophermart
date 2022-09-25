@@ -268,8 +268,8 @@ func (db *storageImpl) GetWithdrawals(UserID string) ([]withdrawalsModel.Withdra
 	return withdrawals, nil
 }
 
-type userIdSum struct {
-	userId string `db:"user_id"`
+type userIDSum struct {
+	userID string `db:"user_id"`
 	sum    int64  `db:"sum"`
 }
 
@@ -296,26 +296,29 @@ func (db *storageImpl) CalcAmounts(offset, limit int, updF func(nums []int64) ma
 			}
 		}
 
-		userIdUpd := make([]userIdSum, 0)
+		userIDUpd := make([]userIDSum, 0)
 		query, args, err := sqlx.In(selectAccountAccuralForCalc, nums)
 		if err != nil {
 			return 0, err
 		}
 		query = db.xdb.Rebind(query)
 
-		if rows, err := db.xdb.QueryContext(db.ctx, query, args...); err != nil {
-			return 0, err
+		if rows, err := db.xdb.QueryContext(db.ctx, query, args...); err != nil || rows.Err() != nil {
+			if err != nil {
+				return 0, err
+			}
+			return 0, rows.Err()
 		} else {
 			for rows.Next() {
-				var r userIdSum
-				if err := rows.Scan(&r.userId, &r.sum); err != nil {
+				var r userIDSum
+				if err := rows.Scan(&r.userID, &r.sum); err != nil {
 					return 0, err
 				}
-				userIdUpd = append(userIdUpd, r)
+				userIDUpd = append(userIDUpd, r)
 			}
 		}
-		for i := 0; i < len(userIdUpd); i++ {
-			if _, err := db.xdb.ExecContext(db.ctx, addAccountAccuralForCalc, userIdUpd[i].userId, userIdUpd[i].sum); err != nil {
+		for i := 0; i < len(userIDUpd); i++ {
+			if _, err := db.xdb.ExecContext(db.ctx, addAccountAccuralForCalc, userIDUpd[i].userID, userIDUpd[i].sum); err != nil {
 				return 0, err
 			}
 		}
