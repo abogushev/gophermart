@@ -28,7 +28,7 @@ func (h *handler) GetWithdrawals(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		apiWithdrawals := make([]api.Withdrawals, len(withdrawals))
 		for i := 0; i < len(apiWithdrawals); i++ {
-			apiWithdrawals[i] = withdrawals[i].ToAPI()
+			// apiWithdrawals[i] = withdrawals[i].ToAPI()
 		}
 		json.NewEncoder(w).Encode(apiWithdrawals)
 	}
