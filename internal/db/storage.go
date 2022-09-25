@@ -88,7 +88,7 @@ const (
 
 	getUserIDByLoginPasswordSQL = `select id from users where login = $1 and password = $2;`
 	getCountByLoginPasswordSQL  = `select count(*) from users where login = $1 and password = $2;`
-	insertUserSQL               = `insert into users(id, login, password) values($1,$2,$3) returning id;`
+	insertUserSQL               = `insert into users(id, login, password) values($1,$2,$3);`
 
 	getOrderUserIDSQL          = `select user_id from orders where number = $1;`
 	saveOrderSQL               = `insert into orders(user_id, number) values($1,$2);`
@@ -147,10 +147,8 @@ func (db *storageImpl) Register(login, password string) (string, error) {
 	if count > 0 {
 		return "", ErrDuplicateLogin
 	}
-	row := db.xdb.QueryRowContext(db.ctx, insertUserSQL, uuid.New().String(), login, password)
-
-	var id string
-	if err := row.Scan(&id); err != nil {
+	id := uuid.New().String()
+	if _, err := db.xdb.ExecContext(db.ctx, insertUserSQL, id, login, password); err != nil {
 		return "", err
 	}
 

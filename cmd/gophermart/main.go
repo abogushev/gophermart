@@ -30,7 +30,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("failed to parse config, %w", err)
 	}
-	logger.Debug(cnfg)
+	logger.Infof("config is %v", cnfg)
 	storage, err := db.NewStorage(cnfg.DBURL, ctx, logger)
 	if err != nil {
 		logger.Fatalf("failed to create storage, %w", err)

@@ -28,10 +28,11 @@ func (h *handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	} else if account, err := h.db.GetAccount(UserID); err != nil {
 		if err == db.ErrUserNotFound {
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusNoContent)
 		} else {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+
 		h.logger.Warnf("failed to auth: %w", err)
 	} else {
 		w.Header().Set("Content-Type", "application/json")
