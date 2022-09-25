@@ -67,7 +67,7 @@ const (
 	);
 
 	create table if not exists accounts(
-		user_id UUID,
+		user_id UUID unique,
 		current integer not null default 0,
 		withdrawn integer not null default 0,
 		CONSTRAINT fk_user
@@ -107,6 +107,7 @@ const (
 	insertWithdrawals               = `insert into withdrawals(user_id,number,sum) values($1,$2,$3);`
 	selectAllwithdrawalsOfUserIDSQL = `select user_id,number,sum,processed_at from withdrawals where user_id = $1 order by processed_at asc`
 
+	createAccount               = `insert into accounts(user_id) values($1)`
 	selectOrdersForCalc         = `select number from orders where status = 0 or status = 1 offset $1 limit $2 for update`
 	updateOrdersForCalc         = `update orders set status = $2, accrual = $3 where number = $1`
 	selectAccountAccuralForCalc = `select user_id, sum(accrual) as sum from orders where number in (?) group by user_id;`
@@ -153,7 +154,9 @@ func (db *storageImpl) Register(login, password string) (string, error) {
 	if _, err := db.xdb.ExecContext(db.ctx, insertUserSQL, id, login, password); err != nil {
 		return "", err
 	}
-
+	if _, err := db.xdb.ExecContext(db.ctx, createAccount, id); err != nil {
+		return "", err
+	}
 	if err := tx.Commit(); err != nil {
 		return "", err
 	}
