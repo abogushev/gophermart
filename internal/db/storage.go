@@ -107,8 +107,10 @@ const (
 	insertWithdrawals               = `insert into withdrawals(user_id,number,sum) values($1,$2,$3);`
 	selectAllwithdrawalsOfUserIDSQL = `select user_id,number,sum,processed_at from withdrawals where user_id = $1 order by processed_at asc`
 
-	selectOrdersForCalc = `select number from orders where status = 0 or status = 1 offset $1 limit $2 for update`
-	updateOrdersForCalc = `update orders set status = $2, accrual = $3 where number = $1`
+	selectOrdersForCalc         = `select number from orders where status = 0 or status = 1 offset $1 limit $2 for update`
+	updateOrdersForCalc         = `update orders set status = $2, accrual = $3 where number = $1`
+	selectAccountAccuralForCalc = `select user_id, sum(accrual) from orders where number in ($1) group by user_id;`
+	addAccountAccuralForCalc    = `update accounts set current = current + $2 where user_id = $1`
 )
 
 func NewStorage(url string, ctx context.Context, logger *zap.SugaredLogger) (Storage, error) {
@@ -285,6 +287,18 @@ func (db *storageImpl) CalcAmounts(offset, limit int, updF func(nums []int64) ma
 				if err := tx.Rollback(); err != nil {
 					return 0, err
 				}
+				return 0, err
+			}
+		}
+		userIdUpd := make([]struct {
+			userId string `db:"user_id"`
+			sum    int64  `db:"sum"`
+		}, 0)
+		if err := db.xdb.SelectContext(db.ctx, userIdUpd, selectAccountAccuralForCalc, nums); err != nil {
+			return 0, err
+		}
+		for i := 0; i < len(userIdUpd); i++ {
+			if _, err := db.xdb.ExecContext(db.ctx, addAccountAccuralForCalc, userIdUpd[i].userId, userIdUpd[i].sum); err != nil {
 				return 0, err
 			}
 		}
