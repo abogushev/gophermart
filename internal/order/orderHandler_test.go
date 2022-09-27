@@ -7,6 +7,7 @@ import (
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
 	"gophermart/internal/order/model/api"
+	"gophermart/internal/utils"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -60,17 +61,16 @@ func (m *mockDBStorage) CalcAmounts(offset, limit int,
 	return 0, nil
 }
 
-var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 var logger = zap.NewExample().Sugar()
 
 func Test_handler_PostOrder(t *testing.T) {
 	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret, logger}
+		return &handler{defaultStorage, utils.TestSecret, logger}
 	}
 	defaultBody := func(number uint64) string { return strconv.FormatUint(number, 10) }
 	var defaultNumber uint64 = 79927398713
-	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
+
 	tests := []struct {
 		name       string
 		code       int
@@ -83,31 +83,31 @@ func Test_handler_PostOrder(t *testing.T) {
 			name:   "номер заказа уже был загружен этим пользователем",
 			code:   200,
 			number: defaultNumber,
-			token:  defaultToken,
+			token:  utils.TestToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(db.ErrDuplicateOrder)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 		{
 			name:   " новый номер заказа принят в обработку",
 			code:   202,
 			number: defaultNumber,
-			token:  defaultToken,
+			token:  utils.TestToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(nil)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 		{
 			name:       "неверный формат запроса",
 			code:       400,
 			number:     defaultNumber,
-			token:      defaultToken,
+			token:      utils.TestToken,
 			body:       func(number uint64) string { return "abc" },
 			getHandler: defaultHandler,
 		},
@@ -123,19 +123,19 @@ func Test_handler_PostOrder(t *testing.T) {
 			name:   "номер заказа уже был загружен другим пользователем",
 			code:   409,
 			number: defaultNumber,
-			token:  defaultToken,
+			token:  utils.TestToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(db.ErrOrderOfAnotherUser)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 		{
 			name:       "неверный формат номера заказа",
 			code:       422,
 			number:     defaultNumber,
-			token:      defaultToken,
+			token:      utils.TestToken,
 			body:       func(number uint64) string { return strconv.FormatUint(defaultNumber+1, 10) },
 			getHandler: defaultHandler,
 		},
@@ -143,12 +143,12 @@ func Test_handler_PostOrder(t *testing.T) {
 			name:   "внутренняя ошибка сервера.",
 			code:   500,
 			number: defaultNumber,
-			token:  defaultToken,
+			token:  utils.TestToken,
 			body:   defaultBody,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("SaveOrder", "1", defaultNumber).Return(errors.New("unexpected exception"))
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 	}
@@ -171,9 +171,9 @@ func Test_handler_PostOrder(t *testing.T) {
 func Test_handler_GetOrders(t *testing.T) {
 	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret, logger}
+		return &handler{defaultStorage, utils.TestSecret, logger}
 	}
-	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
+
 	tests := []struct {
 		name             string
 		code             int
@@ -184,7 +184,7 @@ func Test_handler_GetOrders(t *testing.T) {
 		{
 			name:  "успешная обработка запроса",
 			code:  200,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				result := make([]model.Order, 4)
@@ -197,7 +197,7 @@ func Test_handler_GetOrders(t *testing.T) {
 				}
 
 				storage.On("GetOrders", "1").Return(result, nil)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 			checkResponeBody: func(res *http.Response) {
 				uploadedAt, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
@@ -217,11 +217,11 @@ func Test_handler_GetOrders(t *testing.T) {
 		{
 			name:  "нет данных для ответа",
 			code:  204,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetOrders", "1").Return(make([]model.Order, 0), nil)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 			checkResponeBody: func(res *http.Response) {
 				var result []api.Order
@@ -238,11 +238,11 @@ func Test_handler_GetOrders(t *testing.T) {
 		{
 			name:  "внутренняя ошибка сервера.",
 			code:  500,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetOrders", "1").Return([]model.Order{}, errors.New("unexpected exception"))
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 	}

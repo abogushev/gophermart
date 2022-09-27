@@ -25,17 +25,23 @@ type authData struct {
 	Password string `json:"password"`
 }
 
+func parseAuthErr(authData authData, err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	if authData.Login == "" {
+		return "login must be non empty"
+	}
+	if authData.Password == "" {
+		return "password must be non empty"
+	}
+	return ""
+}
+
 func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 	var authData authData
 	if err := json.NewDecoder(r.Body).Decode(&authData); err != nil || authData.Login == "" || authData.Password == "" {
-		var msg string
-		if err != nil {
-			msg = err.Error()
-		} else if authData.Login == "" {
-			msg = "login must be non empty"
-		} else if authData.Password == "" {
-			msg = "password must be non empty"
-		}
+		var msg string = parseAuthErr(authData, err)
 		h.logger.Warnf("failed to register: %v", msg)
 		http.Error(w, msg, http.StatusBadRequest)
 	} else if id, err := h.db.Register(authData.Login, authData.Password); err != nil {
@@ -57,14 +63,7 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *handler) Auth(w http.ResponseWriter, r *http.Request) {
 	var authData authData
 	if err := json.NewDecoder(r.Body).Decode(&authData); err != nil || authData.Login == "" || authData.Password == "" {
-		var msg string
-		if err != nil {
-			msg = err.Error()
-		} else if authData.Login == "" {
-			msg = "login must be non empty"
-		} else if authData.Password == "" {
-			msg = "password must be non empty"
-		}
+		var msg string = parseAuthErr(authData, err)
 		h.logger.Warnf("failed to auth: %w", err)
 		http.Error(w, msg, http.StatusBadRequest)
 	} else if id, err := h.db.GetByLoginPassword(authData.Login, authData.Password); err != nil {

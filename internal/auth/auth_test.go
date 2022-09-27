@@ -59,13 +59,12 @@ func (m *mockDBStorage) CalcAmounts(offset, limit int,
 	return 0, nil
 }
 
-var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 var logger = zap.NewExample().Sugar()
 
 func TestRegistration(t *testing.T) {
 	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret, logger}
+		return &handler{defaultStorage, utils.TestSecret, logger}
 	}
 
 	tests := []struct {
@@ -89,7 +88,7 @@ func TestRegistration(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("Register", "login", "password").Return("1", nil)
-				return &handler{storage, secret, logger}
+				return &handler{storage, utils.TestSecret, logger}
 			},
 		},
 		{
@@ -143,7 +142,7 @@ func TestRegistration(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("Register", "already_taken_login", "password").Return("", db.ErrDuplicateLogin)
-				return &handler{storage, secret, logger}
+				return &handler{storage, utils.TestSecret, logger}
 			},
 		},
 		{
@@ -157,7 +156,7 @@ func TestRegistration(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("Register", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
-				return &handler{storage, secret, logger}
+				return &handler{storage, utils.TestSecret, logger}
 			},
 		},
 	}
@@ -174,7 +173,7 @@ func TestRegistration(t *testing.T) {
 			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
 
 			if res.StatusCode == 200 {
-				validateToken(t, res, tt.id, secret)
+				validateToken(t, res, tt.id, utils.TestSecret)
 			}
 		})
 	}
@@ -183,7 +182,7 @@ func TestRegistration(t *testing.T) {
 func TestAuth(t *testing.T) {
 	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret, logger}
+		return &handler{defaultStorage, utils.TestSecret, logger}
 	}
 
 	tests := []struct {
@@ -207,7 +206,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "login", "password").Return("1", nil)
-				return &handler{storage, secret, logger}
+				return &handler{storage, utils.TestSecret, logger}
 			},
 		},
 		{
@@ -261,7 +260,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "incorrect_login", "password").Return("", db.ErrUserNotFound)
-				return &handler{storage, secret, logger}
+				return &handler{storage, utils.TestSecret, logger}
 			},
 		},
 		{
@@ -275,7 +274,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "login", "incorrect_password").Return("", db.ErrUserNotFound)
-				return &handler{storage, secret, logger}
+				return &handler{storage, utils.TestSecret, logger}
 			},
 		},
 		{
@@ -289,7 +288,7 @@ func TestAuth(t *testing.T) {
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetByLoginPassword", "internal_error_login", "password").Return("", errors.New("unexpected exception"))
-				return &handler{storage, secret, logger}
+				return &handler{storage, utils.TestSecret, logger}
 			},
 		},
 	}
@@ -306,7 +305,7 @@ func TestAuth(t *testing.T) {
 			assert.Equal(t, tt.code, res.StatusCode, "wrong status")
 
 			if res.StatusCode == 200 {
-				validateToken(t, res, tt.id, secret)
+				validateToken(t, res, tt.id, utils.TestSecret)
 			}
 		})
 	}
@@ -319,7 +318,7 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 		if cookies[i].Name == "token" {
 			token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, utils.UserClaims{ID: id}).SignedString([]byte(key))
 			assert.NoError(t, err, "unexpected exception in validateToken")
-			assert.Equal(t, "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A", token, "bad token")
+			assert.Equal(t, utils.TestToken, token, "bad token")
 			tokenFound = true
 			break
 		}
@@ -330,8 +329,7 @@ func validateToken(t *testing.T, res *http.Response, id string, key string) {
 }
 
 func TestJWT(t *testing.T) {
-	secret := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
-	token, _ := utils.GetJWTToken("1", secret)
-	result, _ := utils.GetIDFromJWTToken(token, secret)
+	token, _ := utils.GetJWTToken("1", utils.TestSecret)
+	result, _ := utils.GetIDFromJWTToken(token, utils.TestSecret)
 	assert.Equal(t, "1", result)
 }

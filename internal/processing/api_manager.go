@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"gophermart/internal/config"
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
 	"gophermart/internal/utils"
@@ -21,6 +22,7 @@ type apiManager struct {
 	host   string
 	db     db.Storage
 	logger *zap.SugaredLogger
+	cfg    *config.Config
 }
 
 type response struct {
@@ -40,13 +42,20 @@ const (
 	Undefined
 )
 
+const (
+	Registered = "REGISTERED"
+	Processing = "PROCESSING"
+	Invalid    = "INVALID"
+	Processed  = "PROCESSED"
+)
+
 func getResult(status string) (ProcessResult, error) {
 	switch status {
-	case "REGISTERED", "PROCESSING":
+	case Registered, Processing:
 		return InProgress, nil
-	case "INVALID":
+	case Invalid:
 		return Failed, nil
-	case "PROCESSED":
+	case Processed:
 		return Completed, nil
 	default:
 		return Undefined, errors.New("undefined status")
@@ -100,38 +109,46 @@ func (m *apiManager) updF(nums []int64) map[int64]db.CalcAmountsUpdateResult {
 
 func (m *apiManager) runCollectСalcs() {
 	offset := 0
-	limit := 10
+
 	for {
-		selectedCount, err := m.db.CalcAmounts(offset, limit, m.updF)
+		selectedCount, err := m.db.CalcAmounts(offset, m.cfg.OrdersUpdateCountInPar, m.updF)
 		if err != nil {
 			m.logger.Errorf("error on runCollectСalcs: %w", err)
 			return
 		}
-		if selectedCount < limit {
+		if selectedCount < m.cfg.OrdersUpdateCountInPar {
 			return
 		}
 
-		offset += limit
+		offset += m.cfg.OrdersUpdateCountInPar
 	}
 }
 
 var once sync.Once
 
-func RunDaemon(client http.Client, host string, db db.Storage, logger *zap.SugaredLogger, ctx context.Context, wg *sync.WaitGroup) {
+func RunDaemon(
+	client http.Client,
+	host string, db db.Storage,
+	logger *zap.SugaredLogger,
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	cfg *config.Config) {
 	go once.Do(func() {
 		wg.Add(1)
 		defer wg.Done()
 
 		ticker := time.NewTicker(time.Second * 1)
-		m := &apiManager{client, host, db, logger}
-		select {
-		case <-ticker.C:
-			logger.Infof("run update orders...")
-			m.runCollectСalcs()
+		m := &apiManager{client, host, db, logger, cfg}
+		for {
+			select {
+			case <-ticker.C:
+				logger.Infof("run update orders...")
+				m.runCollectСalcs()
 
-		case <-ctx.Done():
-			ticker.Stop()
-			return
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			}
 		}
 	})
 }

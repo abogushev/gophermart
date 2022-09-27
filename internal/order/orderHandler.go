@@ -24,19 +24,34 @@ func NewHandler(db db.Storage, secret string, logger *zap.SugaredLogger) *handle
 }
 
 func (h *handler) PostOrder(w http.ResponseWriter, r *http.Request) {
-	if UserID, isAuthed := utils.GetUserID(r, h.secret); !isAuthed {
+	userID, isAuthed := utils.GetUserID(r, h.secret)
+	if !isAuthed {
 		h.logger.Warnf("failed to auth")
 		w.WriteHeader(http.StatusUnauthorized)
-	} else if body, err := io.ReadAll(r.Body); err != nil {
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		h.logger.Warnf("failed to PostOrder: %w", err)
 		w.WriteHeader(http.StatusBadRequest)
-	} else if order, err := strconv.ParseUint(string(body), 10, 64); err != nil {
+		return
+	}
+
+	order, err := strconv.ParseUint(string(body), 10, 64)
+	if err != nil {
 		h.logger.Warnf("failed to PostOrder: %w", err)
 		w.WriteHeader(http.StatusBadRequest)
-	} else if !utils.IsValidOrder(order) {
+		return
+	}
+
+	if !utils.IsValidOrder(order) {
 		h.logger.Warnf("failed to PostOrder: invalid order number")
 		w.WriteHeader(http.StatusUnprocessableEntity)
-	} else if err := h.db.SaveOrder(UserID, order); err != nil {
+		return
+	}
+
+	if err := h.db.SaveOrder(userID, order); err != nil {
 		if errors.Is(err, db.ErrDuplicateOrder) {
 			// 200 -  номер заказа уже был загружен этим пользователем;
 			h.logger.Warnf("failed to PostOrder: %w", err)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
+	"gophermart/internal/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,15 +64,14 @@ func (m *mockDBStorage) CalcAmounts(offset, limit int, updF func(nums []int64) m
 	return 0, nil
 }
 
-var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 var logger = zap.NewExample().Sugar()
 
 func Test_handler_GetAccount(t *testing.T) {
 	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret, logger}
+		return &handler{defaultStorage, utils.TestSecret, logger}
 	}
-	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
+
 	tests := []struct {
 		name             string
 		code             int
@@ -82,12 +82,12 @@ func Test_handler_GetAccount(t *testing.T) {
 		{
 			name:  "счет найден",
 			code:  200,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 
 				storage.On("GetAccount", "1").Return(accountModel.Account{UserID: "1", Current: 10, Withdrawn: 10}, nil)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 			checkResponeBody: func(res *http.Response) {
 				var result accountApi.Account
@@ -99,11 +99,11 @@ func Test_handler_GetAccount(t *testing.T) {
 		{
 			name:  "нет счета",
 			code:  204,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetAccount", "1").Return(accountModel.Account{}, db.ErrUserNotFound)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 			checkResponeBody: func(res *http.Response) {
 				var result accountApi.Account
@@ -120,11 +120,11 @@ func Test_handler_GetAccount(t *testing.T) {
 		{
 			name:  "внутренняя ошибка сервера.",
 			code:  500,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetAccount", "1").Return(accountModel.Account{}, errors.New("unexpected exception"))
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 	}
@@ -150,11 +150,11 @@ func Test_handler_GetAccount(t *testing.T) {
 func Test_handler_Withdraw(t *testing.T) {
 	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret, logger}
+		return &handler{defaultStorage, utils.TestSecret, logger}
 	}
 	defaultBody := func() string { return `{"order": "79927398713","sum": 5.0}` }
 	var defaultNumber uint64 = 79927398713
-	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
+
 	tests := []struct {
 		name       string
 		code       int
@@ -166,30 +166,30 @@ func Test_handler_Withdraw(t *testing.T) {
 			name: "успешная обработка запроса",
 			code: 200,
 
-			token: defaultToken,
+			token: utils.TestToken,
 			body:  defaultBody,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("WithdrawFromAccount", "1", 5.0, defaultNumber).Return(nil)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 		{
 			name:  "на счету недостаточно средств",
 			code:  402,
-			token: defaultToken,
+			token: utils.TestToken,
 			body:  defaultBody,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("WithdrawFromAccount", "1", 5.0, defaultNumber).Return(db.ErrBalanceLimitExhausted)
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 		{
 			name: "неверный формат запроса",
 			code: 400,
 
-			token:      defaultToken,
+			token:      utils.TestToken,
 			body:       func() string { return "abc" },
 			getHandler: defaultHandler,
 		},
@@ -205,19 +205,19 @@ func Test_handler_Withdraw(t *testing.T) {
 			name: "неверный формат номера заказа",
 			code: 422,
 
-			token:      defaultToken,
+			token:      utils.TestToken,
 			body:       func() string { return `{"order": "799273987131","sum": 5.0}` },
 			getHandler: defaultHandler,
 		},
 		{
 			name:  "внутренняя ошибка сервера.",
 			code:  500,
-			token: defaultToken,
+			token: utils.TestToken,
 			body:  defaultBody,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("WithdrawFromAccount", "1", 5.0, defaultNumber).Return(errors.New("unexpected error"))
-				return &handler{db: storage, secret: secret, logger: logger}
+				return &handler{db: storage, secret: utils.TestSecret, logger: logger}
 			},
 		},
 	}

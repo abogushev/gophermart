@@ -12,6 +12,7 @@ import (
 	accountModel "gophermart/internal/account/model/db"
 	"gophermart/internal/db"
 	"gophermart/internal/order/model"
+	"gophermart/internal/utils"
 	"gophermart/internal/withdrawals/model/api"
 	withdrawalsModel "gophermart/internal/withdrawals/model/db"
 
@@ -56,14 +57,11 @@ func (m *mockDBStorage) CalcAmounts(offset, limit int,
 	return 0, nil
 }
 
-var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
-
 func Test_handler_GetWithdrawals(t *testing.T) {
 	defaultStorage := new(mockDBStorage)
 	defaultHandler := func() *handler {
-		return &handler{defaultStorage, secret}
+		return &handler{defaultStorage, utils.TestSecret}
 	}
-	defaultToken := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
 	tests := []struct {
 		name             string
 		code             int
@@ -74,7 +72,7 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 		{
 			name:  "успешная обработка запроса",
 			code:  200,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				result := make([]withdrawalsModel.Withdrawals, 1)
@@ -82,7 +80,7 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 				result[0].ProcessedAt, _ = time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
 
 				storage.On("GetWithdrawals", "1").Return(result, nil)
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: utils.TestSecret}
 			},
 			checkResponeBody: func(res *http.Response) {
 				processedAt, _ := time.Parse(time.RFC3339, "2020-12-10T15:15:45+03:00")
@@ -97,11 +95,11 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 		{
 			name:  "нет данных для ответа",
 			code:  204,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetWithdrawals", "1").Return([]withdrawalsModel.Withdrawals{}, nil)
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: utils.TestSecret}
 			},
 			checkResponeBody: func(res *http.Response) {
 				var result []api.Withdrawals
@@ -118,11 +116,11 @@ func Test_handler_GetWithdrawals(t *testing.T) {
 		{
 			name:  "внутренняя ошибка сервера.",
 			code:  500,
-			token: defaultToken,
+			token: utils.TestToken,
 			getHandler: func() *handler {
 				storage := new(mockDBStorage)
 				storage.On("GetWithdrawals", "1").Return([]withdrawalsModel.Withdrawals{}, errors.New("unexpected exception"))
-				return &handler{db: storage, secret: secret}
+				return &handler{db: storage, secret: utils.TestSecret}
 			},
 		},
 	}

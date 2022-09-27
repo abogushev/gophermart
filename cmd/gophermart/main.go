@@ -6,6 +6,7 @@ import (
 	"gophermart/internal/db"
 	"gophermart/internal/processing"
 	mainServer "gophermart/internal/server"
+	"gophermart/internal/utils"
 	"log"
 	"net/http"
 	"os/signal"
@@ -38,9 +39,8 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 
-	var secret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
-	processing.RunDaemon(http.Client{}, cnfg.ProcessingAddress, storage, logger, ctx, wg)
-	mainServer.Run(storage, secret, cnfg, logger, ctx)
+	processing.RunDaemon(http.Client{}, cnfg.ProcessingAddress, storage, logger, ctx, wg, cnfg)
+	mainServer.Run(storage, utils.TestSecret, cnfg, logger, ctx)
 
 	wg.Wait()
 }

@@ -1,10 +1,16 @@
 package utils
 
 import (
+	"errors"
 	"math"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v4"
+)
+
+const (
+	TestToken  = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjEifQ.VsJEi0QUMf6FZ3r6p3EzRmEqbNq6sePy27Rw8nfaHDb6lyYkZdSWNGsQx6dX1dSDp3oRp8MD2fYTBJlljsjD1A"
+	TestSecret = "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJMb2dpbiI6ImxvZ2luIn0.cJ-fGT2jF6lVw1dF6MfN7k44KuNGdRowac6RXzCFO997Sjo0Uk_wNVtj2i8jtUt9_0RQI1CnsHu5dOcINSXhwg"
 )
 
 func GetAPIAccrual(a int64) float64 {
@@ -45,9 +51,8 @@ func GetIDFromJWTToken(tokenString string, secret string) (string, error) {
 
 	if claims, ok := token.Claims.(*UserClaims); ok && token.Valid {
 		return claims.ID, nil
-	} else {
-		return "", err
 	}
+	return "", errors.New("bad token")
 }
 
 // Valid check number is valid or not based on Luhn algorithm

@@ -2,6 +2,13 @@ package api
 
 import "time"
 
+const (
+	New        = "NEW"
+	Processing = "PROCESSING"
+	Invalid    = "INVALID"
+	Processed  = "PROCESSED"
+)
+
 type Order struct {
 	Number     string    `json:"number"`
 	UserID     string    `json:"user_id"`

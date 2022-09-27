@@ -40,13 +40,13 @@ func (o *Order) ToAPI() api.Order {
 
 	switch o.Status {
 	case New:
-		s = "NEW"
+		s = api.New
 	case Processing:
-		s = "PROCESSING"
+		s = api.Processing
 	case Invalid:
-		s = "INVALID"
+		s = api.Invalid
 	case Processed:
-		s = "PROCESSED"
+		s = api.Processed
 	}
 
 	var ac *float64
