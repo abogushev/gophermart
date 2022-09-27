@@ -41,7 +41,7 @@ func parseAuthErr(authData authData, err error) string {
 func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 	var authData authData
 	if err := json.NewDecoder(r.Body).Decode(&authData); err != nil || authData.Login == "" || authData.Password == "" {
-		var msg string = parseAuthErr(authData, err)
+		msg := parseAuthErr(authData, err)
 		h.logger.Warnf("failed to register: %v", msg)
 		http.Error(w, msg, http.StatusBadRequest)
 	} else if id, err := h.db.Register(authData.Login, authData.Password); err != nil {
@@ -63,7 +63,7 @@ func (h *handler) Register(w http.ResponseWriter, r *http.Request) {
 func (h *handler) Auth(w http.ResponseWriter, r *http.Request) {
 	var authData authData
 	if err := json.NewDecoder(r.Body).Decode(&authData); err != nil || authData.Login == "" || authData.Password == "" {
-		var msg string = parseAuthErr(authData, err)
+		msg := parseAuthErr(authData, err)
 		h.logger.Warnf("failed to auth: %w", err)
 		http.Error(w, msg, http.StatusBadRequest)
 	} else if id, err := h.db.GetByLoginPassword(authData.Login, authData.Password); err != nil {
